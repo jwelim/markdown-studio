@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Markdown Studio</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%234f7ce6'%3E%3Cpath d='M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm2 5v8h2V11l2 3 2-3v5h2V8h-2l-2 3-2-3H7zm9 0v4h-2l3 4 3-4h-2V8h-2z'/%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-light.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+
+<style>
+:root {
+  --bg: #f4f6fb;
+  --card: #ffffff;
+  --sub-card: #fafbfd;
+  --accent: #4f7ce6;
+  --accent-hover: #4068d1;
+  --accent-bg: #f0f4ff;
+  --amber: #ffa00f;
+  --amber-bg: #fff4e0;
+  --amber-text: #c97a00;
+  --green: #2e8b57;
+  --green-bg: #e6f7ed;
+  --red: #d22f2f;
+  --red-bg: #fff5f5;
+  --red-border: #ff8a8a;
+  --text: #1a2238;
+  --sub-text: #6b7891;
+  --border: #e2e8f3;
+  --border-light: #f0f2f7;
+  --shadow-card: 0 8px 40px rgba(20, 40, 90, 0.07);
+  --shadow-soft: 0 4px 24px rgba(79, 124, 230, 0.06);
+  --shadow-btn: 0 4px 12px rgba(79, 124, 230, 0.25);
+  --font: "Hiragino Sans", "Yu Gothic", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  height: 100vh;
+  overflow: hidden;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ===== APP LAYOUT ===== */
+.app {
+  display: grid;
+  grid-template-rows: 64px 1fr;
+  grid-template-columns: 300px 1fr;
+  height: 100vh;
+  transition: grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.app.sidebar-collapsed {
+  grid-template-columns: 0 1fr;
+}
+
+/* ===== HEADER ===== */
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 22px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border-light);
+  z-index: 10;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  min-width: 0;
+}
+.header-title .folder-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.header-title .file-path {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--sub-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+.header-title .file-path:not(:empty)::before {
+  content: "/";
+  margin-right: 6px;
+  color: var(--border);
+}
+
+.icon-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub-text);
+  transition: 0.2s;
+}
+.icon-btn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.header-spacer { flex: 1; }
+
+.mode-tabs {
+  display: inline-flex;
+  background: var(--bg);
+  padding: 4px;
+  border-radius: 100px;
+  gap: 2px;
+}
+.mode-tab {
+  padding: 8px 18px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sub-text);
+  transition: 0.25s;
+}
+.mode-tab:hover { color: var(--accent); }
+.mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(79, 124, 230, 0.32);
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 100px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  box-shadow: var(--shadow-btn);
+  transition: 0.25s;
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(79, 124, 230, 0.32);
+}
+.btn-primary:disabled {
+  background: var(--border);
+  box-shadow: none;
+  cursor: default;
+  transform: none;
+  color: var(--sub-text);
+}
+
+.btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 100px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  transition: 0.25s;
+}
+.btn-ghost:hover {
+  background: #e3ecff;
+}
+
+/* ===== SIDEBAR ===== */
+.sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border-light);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sidebar-search {
+  padding: 16px 16px 10px;
+  position: relative;
+}
+.sidebar-search input {
+  width: 100%;
+  padding: 10px 14px 10px 38px;
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  background: #f8faff;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--text);
+  transition: 0.2s;
+}
+.sidebar-search input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(79, 124, 230, 0.12);
+}
+.sidebar-search svg {
+  position: absolute;
+  left: 28px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-top: 3px;
+  color: var(--sub-text);
+  pointer-events: none;
+}
+
+.sidebar-tree {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 10px 24px;
+}
+.sidebar-tree::-webkit-scrollbar { width: 8px; }
+.sidebar-tree::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.sidebar-tree::-webkit-scrollbar-thumb:hover { background: #cbd5e8; }
+
+.empty-state {
+  padding: 32px 18px;
+  text-align: center;
+  color: var(--sub-text);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.empty-state strong {
+  display: block;
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.tree-node {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: 0.18s;
+  min-width: 0;
+  margin-bottom: 1px;
+}
+.tree-node:hover {
+  background: var(--accent-bg);
+}
+.tree-node.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.tree-node.active .tree-icon { color: rgba(255, 255, 255, 0.85); }
+.tree-node.active .dirty-dot { background: #fff; }
+
+.tree-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--sub-text);
+  transition: transform 0.18s;
+}
+.tree-node.active .tree-chevron { color: rgba(255, 255, 255, 0.7); }
+.tree-chevron.open { transform: rotate(90deg); }
+
+.tree-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--sub-text);
+}
+.tree-node.folder .tree-icon { color: var(--amber); }
+
+.tree-label {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 100px;
+  background: var(--amber);
+  flex-shrink: 0;
+}
+
+.tree-children {
+  margin-left: 14px;
+  padding-left: 6px;
+  border-left: 1px dashed var(--border);
+}
+
+.tree-children.hidden { display: none; }
+
+/* ===== MAIN PANE ===== */
+.main {
+  background: var(--bg);
+  overflow: hidden;
+  position: relative;
+}
+
+.main-inner {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+}
+
+.preview-pane, .editor-pane {
+  flex: 1;
+  overflow-y: auto;
+  height: 100%;
+  position: relative;
+}
+.preview-pane::-webkit-scrollbar,
+.editor-pane::-webkit-scrollbar { width: 10px; }
+.preview-pane::-webkit-scrollbar-thumb,
+.editor-pane::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+.preview-pane::-webkit-scrollbar-thumb:hover,
+.editor-pane::-webkit-scrollbar-thumb:hover { background: #cbd5e8; }
+
+.split-divider {
+  width: 1px;
+  background: var(--border-light);
+  flex-shrink: 0;
+}
+
+.main.preview-only .editor-pane,
+.main.preview-only .split-divider { display: none; }
+.main.edit-only .preview-pane,
+.main.edit-only .split-divider { display: none; }
+
+/* ===== PREVIEW ===== */
+.preview-pane {
+  padding: 36px 48px 80px;
+}
+
+.preview-content {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.no-file {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--sub-text);
+  gap: 16px;
+  text-align: center;
+}
+.no-file h2 {
+  font-size: 20px;
+  color: var(--text);
+  margin: 0;
+  font-weight: 600;
+}
+.no-file p { margin: 0; line-height: 1.7; font-size: 14px; }
+.no-file svg {
+  width: 56px;
+  height: 56px;
+  color: var(--accent);
+  opacity: 0.4;
+}
+
+/* Frontmatter card */
+.frontmatter-card {
+  background: var(--card);
+  border-radius: 22px;
+  padding: 28px 32px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow-card);
+}
+.frontmatter-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -1.2px;
+  line-height: 1.2;
+  margin: 0 0 14px;
+}
+.frontmatter-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 8px 18px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.frontmatter-meta .key {
+  color: var(--sub-text);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 11px;
+  padding-top: 3px;
+}
+.frontmatter-meta .val {
+  color: var(--text);
+  word-break: break-word;
+}
+.frontmatter-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fm-tag {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.fm-status {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.fm-status.in-development { background: var(--amber-bg); color: var(--amber-text); }
+.fm-status.released { background: var(--green-bg); color: var(--green); }
+.fm-status.archived { background: var(--border-light); color: var(--sub-text); }
+
+/* Markdown body */
+.md-body {
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--text);
+}
+.md-body > *:first-child { margin-top: 0; }
+.md-body > *:last-child { margin-bottom: 0; }
+
+.md-body h1, .md-body h2, .md-body h3,
+.md-body h4, .md-body h5, .md-body h6 {
+  color: var(--text);
+  font-weight: 700;
+  line-height: 1.35;
+  margin: 1.8em 0 0.7em;
+  scroll-margin-top: 24px;
+}
+.md-body h1 {
+  font-size: 30px;
+  letter-spacing: -0.8px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border-light);
+}
+.md-body h2 {
+  font-size: 22px;
+  letter-spacing: -0.4px;
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.md-body h2::before {
+  content: "";
+  width: 4px;
+  height: 22px;
+  background: var(--accent);
+  border-radius: 100px;
+  flex-shrink: 0;
+}
+.md-body h3 {
+  font-size: 17px;
+  color: var(--text);
+}
+.md-body h4 { font-size: 15px; color: var(--sub-text); text-transform: uppercase; letter-spacing: 1px; }
+.md-body h5, .md-body h6 { font-size: 14px; }
+
+.md-body p { margin: 0.9em 0; }
+
+.md-body a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(79, 124, 230, 0.3); }
+.md-body a:hover { border-bottom-color: var(--accent); }
+
+.md-body ul, .md-body ol {
+  margin: 0.7em 0;
+  padding-left: 24px;
+}
+.md-body li { margin: 0.25em 0; }
+.md-body li::marker { color: var(--accent); }
+
+.md-body input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  vertical-align: middle;
+  accent-color: var(--accent);
+  cursor: default;
+}
+
+.md-body blockquote {
+  margin: 1em 0;
+  padding: 8px 18px;
+  border-left: 4px solid var(--accent);
+  background: var(--accent-bg);
+  border-radius: 4px 14px 14px 4px;
+  color: var(--text);
+}
+.md-body blockquote p { margin: 0.4em 0; }
+
+.md-body hr {
+  border: none;
+  border-top: 1px dashed var(--border);
+  margin: 2em 0;
+}
+
+.md-body code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--accent-bg);
+  color: var(--accent-hover);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.md-body pre {
+  position: relative;
+  background: var(--sub-card);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 20px 22px;
+  overflow-x: auto;
+  margin: 1.2em 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+}
+.md-body pre code {
+  background: none;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+  font-family: var(--mono);
+  font-size: 13.5px;
+}
+.md-body pre .code-lang {
+  position: absolute;
+  top: 10px;
+  right: 14px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--sub-text);
+  background: var(--card);
+  padding: 3px 10px;
+  border-radius: 100px;
+  border: 1px solid var(--border-light);
+}
+
+.md-body table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1.2em 0;
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  overflow: hidden;
+  font-size: 14px;
+}
+.md-body th, .md-body td {
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-light);
+}
+.md-body th {
+  background: var(--sub-card);
+  font-weight: 700;
+  color: var(--sub-text);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.md-body tr:last-child td { border-bottom: none; }
+.md-body tr:nth-child(even) td { background: var(--sub-card); }
+
+.md-body img {
+  max-width: 100%;
+  border-radius: 18px;
+  box-shadow: var(--shadow-card);
+  margin: 1em 0;
+  display: block;
+}
+
+/* Wiki-link */
+.md-body .wikilink {
+  display: inline-block;
+  padding: 1px 12px;
+  border-radius: 100px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: none;
+  text-decoration: none;
+  margin: 0 1px;
+  transition: 0.2s;
+  cursor: pointer;
+  vertical-align: baseline;
+}
+.md-body .wikilink:hover {
+  background: var(--accent);
+  color: #fff;
+  text-decoration: none;
+}
+.md-body .wikilink.unknown {
+  background: var(--red-bg);
+  color: var(--red);
+}
+.md-body .wikilink.unknown:hover {
+  background: var(--red);
+  color: #fff;
+}
+
+/* Mermaid */
+.md-body .mermaid-block {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 22px;
+  margin: 1.2em 0;
+  text-align: center;
+  border: 1px solid var(--border-light);
+  overflow-x: auto;
+}
+.md-body .mermaid-block svg { max-width: 100%; height: auto; }
+.md-body .mermaid-error {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid var(--red-border);
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-family: var(--mono);
+}
+
+/* KaTeX adjustments */
+.md-body .katex-display {
+  margin: 1.2em 0;
+  padding: 14px 0;
+  background: var(--card);
+  border-radius: 14px;
+  overflow-x: auto;
+}
+
+/* ===== EDITOR ===== */
+.editor-pane {
+  padding: 36px 48px 80px;
+}
+.editor-content {
+  max-width: 880px;
+  margin: 0 auto;
+  height: calc(100% - 0px);
+}
+.editor-textarea {
+  width: 100%;
+  min-height: 100%;
+  padding: 28px 32px;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: 22px;
+  font-family: var(--mono);
+  font-size: 14.5px;
+  line-height: 1.75;
+  color: var(--text);
+  resize: none;
+  outline: none;
+  box-shadow: var(--shadow-card);
+  tab-size: 2;
+}
+.editor-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(79, 124, 230, 0.10), var(--shadow-card);
+}
+
+/* Split mode */
+.main.split .preview-pane,
+.main.split .editor-pane {
+  flex: 1;
+}
+.main.split .preview-pane { padding: 28px 32px 60px; }
+.main.split .editor-pane { padding: 28px 32px 60px; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 28px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text);
+  color: #fff;
+  padding: 12px 22px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 100;
+  box-shadow: 0 12px 32px rgba(20, 40, 90, 0.22);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.toast.error {
+  background: var(--red);
+}
+.toast.success { background: var(--green); }
+
+/* ===== UNSUPPORTED OVERLAY ===== */
+.unsupported {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 32px;
+}
+.unsupported-card {
+  background: var(--card);
+  border-radius: 28px;
+  padding: 40px 44px;
+  max-width: 480px;
+  box-shadow: var(--shadow-card);
+  text-align: center;
+}
+.unsupported-card h1 {
+  font-size: 24px;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+.unsupported-card p {
+  color: var(--sub-text);
+  line-height: 1.7;
+  margin: 0 0 18px;
+  font-size: 14px;
+}
+.unsupported-card code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: var(--accent);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 880px) {
+  .app {
+    grid-template-rows: 64px auto 1fr;
+    grid-template-columns: 1fr;
+  }
+  .sidebar {
+    max-height: 220px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-light);
+  }
+  .app.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+  .app.sidebar-collapsed .sidebar { display: none; }
+  .preview-pane, .editor-pane { padding: 24px 18px 60px; }
+  .frontmatter-title { font-size: 28px; }
+  .header { padding: 0 14px; gap: 8px; }
+  .header-title .file-path { display: none; }
+  .mode-tab { padding: 8px 12px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <button class="icon-btn" id="btn-toggle-sidebar" title="サイドバー">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+
+    <div class="header-title">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--amber);">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="folder-name" id="folder-name">フォルダ未選択</span>
+      <span class="file-path" id="file-path"></span>
+    </div>
+
+    <div class="header-spacer"></div>
+
+    <div class="mode-tabs" id="mode-tabs">
+      <button class="mode-tab active" data-mode="preview">Preview</button>
+      <button class="mode-tab" data-mode="edit">Edit</button>
+      <button class="mode-tab" data-mode="split">Split</button>
+    </div>
+
+    <button class="btn-ghost" id="btn-open">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+      Open Folder
+    </button>
+
+    <button class="btn-primary" id="btn-save" disabled>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <polyline points="17 21 17 13 7 13 7 21"/>
+        <polyline points="7 3 7 8 15 8"/>
+      </svg>
+      Save
+    </button>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" id="search-input" placeholder="ファイル名で絞り込み...">
+    </div>
+    <div class="sidebar-tree" id="sidebar-tree">
+      <div class="empty-state">
+        <strong>フォルダが選択されていません</strong>
+        右上の「Open Folder」から<br>.md ファイルが入ったフォルダを開いてください
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main preview-only" id="main">
+    <div class="main-inner">
+      <div class="editor-pane">
+        <div class="editor-content">
+          <textarea class="editor-textarea" id="editor" spellcheck="false" placeholder="ここにMarkdownを入力..."></textarea>
+        </div>
+      </div>
+      <div class="split-divider"></div>
+      <div class="preview-pane">
+        <div class="preview-content" id="preview">
+          <div class="no-file">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <h2>ファイルを選択してください</h2>
+            <p>左のサイドバーから .md ファイルを<br>クリックすると、ここにプレビューが表示されます</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Unsupported overlay -->
+<div class="unsupported" id="unsupported" style="display:none;">
+  <div class="unsupported-card">
+    <h1>ブラウザがサポートされていません</h1>
+    <p>このツールは <strong>File System Access API</strong> を使用してフォルダ／ファイルを読み書きします。</p>
+    <p>Chrome / Edge / Brave / Arc など Chromium 系のブラウザで開いてください。</p>
+    <p>また、<code>file://</code> ではなく <code>http://localhost</code> 経由でアクセスしてください（例: <code>python3 -m http.server 8000</code>）。</p>
+  </div>
+</div>
+
+<!-- CDN -->
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.0.0/dist/markdown-it.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+
+<script>
+'use strict';
+
+/* ========== Environment check ========== */
+if (!('showDirectoryPicker' in window)) {
+  document.getElementById('unsupported').style.display = 'flex';
+}
+
+/* ========== State ========== */
+const state = {
+  rootHandle: null,        // FileSystemDirectoryHandle
+  rootName: '',
+  fileMap: new Map(),      // path -> { handle, name, path }
+  folderOpen: new Set(),   // expanded folder paths
+  currentPath: null,
+  currentHandle: null,
+  currentText: '',         // last loaded text from disk
+  dirty: false,
+  mode: 'preview',         // 'preview' | 'edit' | 'split'
+  filter: '',
+};
+
+/* ========== IndexedDB (for directory handle persistence) ========== */
+const DB_NAME = 'markdown-studio';
+const DB_STORE = 'handles';
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveHandle(handle) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readwrite');
+    tx.objectStore(DB_STORE).put(handle, 'rootHandle');
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function loadHandle() {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(DB_STORE, 'readonly');
+    const req = tx.objectStore(DB_STORE).get('rootHandle');
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function verifyPermission(handle, write = true) {
+  const opts = { mode: write ? 'readwrite' : 'read' };
+  if ((await handle.queryPermission(opts)) === 'granted') return true;
+  if ((await handle.requestPermission(opts)) === 'granted') return true;
+  return false;
+}
+
+/* ========== Markdown setup ========== */
+const md = window.markdownit({
+  html: false,
+  linkify: true,
+  breaks: false,
+  typographer: false,
+  highlight: function (str, lang) {
+    if (lang === 'mermaid') {
+      const encoded = encodeURIComponent(str);
+      return `<div class="mermaid-block" data-source="${encoded}"></div>`;
+    }
+    const escape = md.utils.escapeHtml;
+    let code = '';
+    let langClass = '';
+    if (lang && window.hljs.getLanguage(lang)) {
+      try {
+        code = window.hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+        langClass = ` language-${escape(lang)}`;
+      } catch (e) { code = escape(str); }
+    } else {
+      try { code = window.hljs.highlightAuto(str).value; }
+      catch (e) { code = escape(str); }
+    }
+    const langLabel = lang ? `<div class="code-lang">${escape(lang)}</div>` : '';
+    return `<pre>${langLabel}<code class="hljs${langClass}">${code}</code></pre>`;
+  }
+});
+/* Task lists: post-process after render (avoids extra dependency) */
+function postProcessTaskLists(html) {
+  return html
+    .replace(/<li>\s*\[([ xX])\]\s+/g, (m, c) => {
+      const checked = c.trim() ? ' checked' : '';
+      return `<li class="task-list-item"><input type="checkbox" disabled${checked}> `;
+    })
+    .replace(/<li>\s*<p>\s*\[([ xX])\]\s+/g, (m, c) => {
+      const checked = c.trim() ? ' checked' : '';
+      return `<li class="task-list-item"><p><input type="checkbox" disabled${checked}> `;
+    });
+}
+
+/* Wiki-link inline rule: [[Target]] or [[Target|Display]] */
+md.inline.ruler.after('emphasis', 'wikilink', function wikilink(state, silent) {
+  const start = state.pos;
+  const src = state.src;
+  if (src.charCodeAt(start) !== 0x5B) return false;       // [
+  if (src.charCodeAt(start + 1) !== 0x5B) return false;   // [[
+  let end = start + 2;
+  while (end < src.length - 1) {
+    const c = src.charCodeAt(end);
+    if (c === 0x5D && src.charCodeAt(end + 1) === 0x5D) break; // ]]
+    if (c === 0x0A) return false;
+    end++;
+  }
+  if (end >= src.length - 1) return false;
+  const content = src.slice(start + 2, end);
+  if (!content.trim()) return false;
+  if (!silent) {
+    const token = state.push('wikilink', '', 0);
+    const [tgt, disp] = content.split('|');
+    token.meta = { target: tgt.trim(), display: (disp || tgt).trim() };
+  }
+  state.pos = end + 2;
+  return true;
+});
+md.renderer.rules.wikilink = function (tokens, idx) {
+  const { target, display } = tokens[idx].meta;
+  const t = md.utils.escapeHtml(target);
+  const d = md.utils.escapeHtml(display);
+  return `<a class="wikilink" data-target="${t}" href="javascript:void(0)">${d}</a>`;
+};
+
+/* Mermaid init */
+window.mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'default' });
+
+/* ========== Frontmatter ========== */
+function parseFrontmatter(text) {
+  const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) return { meta: null, body: text };
+  try {
+    const meta = window.jsyaml.load(m[1]) || {};
+    return { meta, body: m[2] };
+  } catch (e) {
+    return { meta: null, body: text };
+  }
+}
+
+function formatMetaValue(v) {
+  if (v === null || v === undefined) return '';
+  if (v instanceof Date) {
+    const y = v.getFullYear();
+    const m = String(v.getMonth() + 1).padStart(2, '0');
+    const d = String(v.getDate()).padStart(2, '0');
+    if (v.getHours() === 0 && v.getMinutes() === 0 && v.getSeconds() === 0) {
+      return `${y}-${m}-${d}`;
+    }
+    const hh = String(v.getHours()).padStart(2, '0');
+    const mm = String(v.getMinutes()).padStart(2, '0');
+    return `${y}-${m}-${d} ${hh}:${mm}`;
+  }
+  if (Array.isArray(v)) return v.join(', ');
+  if (typeof v === 'object') return JSON.stringify(v);
+  return String(v);
+}
+
+function renderFrontmatter(meta) {
+  if (!meta || typeof meta !== 'object') return '';
+  const escape = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  let html = '<div class="frontmatter-card">';
+
+  if (meta.title) {
+    html += `<h1 class="frontmatter-title">${escape(meta.title)}</h1>`;
+  }
+
+  // Tags
+  if (meta.tags && Array.isArray(meta.tags) && meta.tags.length) {
+    html += '<div class="frontmatter-tags" style="margin-bottom:14px;">';
+    for (const t of meta.tags) {
+      html += `<span class="fm-tag">#${escape(t)}</span>`;
+    }
+    if (meta.status) {
+      const statusClass = String(meta.status).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+      html += `<span class="fm-status ${statusClass}">${escape(meta.status)}</span>`;
+    }
+    html += '</div>';
+  } else if (meta.status) {
+    const statusClass = String(meta.status).replace(/[^a-z0-9-]/gi, '-').toLowerCase();
+    html += `<div class="frontmatter-tags" style="margin-bottom:14px;"><span class="fm-status ${statusClass}">${escape(meta.status)}</span></div>`;
+  }
+
+  // Other meta
+  const skip = new Set(['title', 'tags', 'status']);
+  const entries = Object.entries(meta).filter(([k]) => !skip.has(k));
+  if (entries.length) {
+    html += '<div class="frontmatter-meta">';
+    for (const [k, v] of entries) {
+      html += `<div class="key">${escape(k)}</div><div class="val">${escape(formatMetaValue(v))}</div>`;
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/* ========== Rendering ========== */
+let mermaidCounter = 0;
+async function renderPreview(text) {
+  const previewEl = document.getElementById('preview');
+  const { meta, body } = parseFrontmatter(text);
+
+  const html = postProcessTaskLists(md.render(body));
+  const fmHtml = renderFrontmatter(meta);
+
+  previewEl.innerHTML = fmHtml + `<div class="md-body">${html}</div>`;
+
+  // Mark unknown wiki-links
+  const wikilinks = previewEl.querySelectorAll('.wikilink');
+  wikilinks.forEach(a => {
+    const tgt = a.dataset.target;
+    if (!findFileByBaseName(tgt)) {
+      a.classList.add('unknown');
+      a.title = `${tgt} は見つかりません`;
+    } else {
+      a.title = `${tgt} を開く`;
+    }
+  });
+
+  // Render mermaid blocks
+  const mermaidBlocks = previewEl.querySelectorAll('.mermaid-block');
+  for (const block of mermaidBlocks) {
+    const source = decodeURIComponent(block.dataset.source);
+    const id = 'mermaid-' + (++mermaidCounter);
+    try {
+      const { svg } = await window.mermaid.render(id, source);
+      block.innerHTML = svg;
+    } catch (e) {
+      block.outerHTML = `<div class="mermaid-error">Mermaid error: ${md.utils.escapeHtml(e.message || String(e))}</div>`;
+    }
+  }
+
+  // KaTeX
+  try {
+    window.renderMathInElement(previewEl, {
+      delimiters: [
+        { left: '$$', right: '$$', display: true },
+        { left: '$', right: '$', display: false },
+        { left: '\\(', right: '\\)', display: false },
+        { left: '\\[', right: '\\]', display: true },
+      ],
+      throwOnError: false,
+    });
+  } catch (e) { /* ignore */ }
+}
+
+/* Find file in fileMap by basename (with or without .md) */
+function findFileByBaseName(name) {
+  const target = name.toLowerCase().replace(/\.md$/, '');
+  for (const [path, info] of state.fileMap) {
+    const base = info.name.toLowerCase().replace(/\.md$/, '');
+    if (base === target) return info;
+  }
+  return null;
+}
+
+/* ========== File tree ========== */
+async function walkDirectory(handle, parentPath = '') {
+  const node = { name: handle.name, path: parentPath ? `${parentPath}/${handle.name}` : handle.name, type: 'folder', children: [] };
+  for await (const [name, child] of handle.entries()) {
+    if (name.startsWith('.')) continue;
+    if (child.kind === 'directory') {
+      const subPath = `${node.path}/${name}`;
+      const subHandle = await handle.getDirectoryHandle(name);
+      const childNode = await walkDirectory(subHandle, node.path);
+      if (childNode.children.length > 0) node.children.push(childNode);
+    } else if (child.kind === 'file' && name.toLowerCase().endsWith('.md')) {
+      const path = `${node.path}/${name}`;
+      const info = { handle: child, name, path };
+      state.fileMap.set(path, info);
+      node.children.push({ name, path, type: 'file' });
+    }
+  }
+  // sort: folders first, then files alphabetically
+  node.children.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    return a.name.localeCompare(b.name, 'ja');
+  });
+  return node;
+}
+
+function renderTree(node, depth = 0) {
+  const filter = state.filter.toLowerCase();
+  const container = document.createElement('div');
+
+  for (const child of node.children) {
+    if (child.type === 'folder') {
+      // Check if any descendant matches the filter
+      const hasMatch = !filter || hasMatchingDescendant(child, filter);
+      if (!hasMatch) continue;
+
+      const isOpen = state.folderOpen.has(child.path) || !!filter;
+      const row = document.createElement('div');
+      row.className = 'tree-node folder';
+      row.dataset.path = child.path;
+      row.innerHTML = `
+        <svg class="tree-chevron ${isOpen ? 'open' : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        <span class="tree-label">${escapeHtml(child.name)}</span>
+      `;
+      row.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (state.folderOpen.has(child.path)) {
+          state.folderOpen.delete(child.path);
+        } else {
+          state.folderOpen.add(child.path);
+        }
+        rebuildTree();
+      });
+      container.appendChild(row);
+
+      const childWrap = document.createElement('div');
+      childWrap.className = 'tree-children' + (isOpen ? '' : ' hidden');
+      const childTree = renderTree(child, depth + 1);
+      childWrap.appendChild(childTree);
+      container.appendChild(childWrap);
+    } else {
+      // file
+      if (filter && !child.name.toLowerCase().includes(filter)) continue;
+      const row = document.createElement('div');
+      row.className = 'tree-node file';
+      row.dataset.path = child.path;
+      if (state.currentPath === child.path) row.classList.add('active');
+      const fileInfo = state.fileMap.get(child.path);
+      const isDirty = state.currentPath === child.path && state.dirty;
+      const displayName = child.name.replace(/\.md$/, '');
+      row.innerHTML = `
+        <span style="width:14px;flex-shrink:0;"></span>
+        <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span class="tree-label">${escapeHtml(displayName)}</span>
+        ${isDirty ? '<span class="dirty-dot"></span>' : ''}
+      `;
+      row.addEventListener('click', async () => {
+        if (state.currentPath === child.path) return;
+        if (await confirmSwitchAway()) {
+          await openFile(child.path);
+        }
+      });
+      container.appendChild(row);
+    }
+  }
+  return container;
+}
+
+function hasMatchingDescendant(node, filter) {
+  for (const child of node.children) {
+    if (child.type === 'file' && child.name.toLowerCase().includes(filter)) return true;
+    if (child.type === 'folder' && hasMatchingDescendant(child, filter)) return true;
+  }
+  return false;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+let rootTreeNode = null;
+function rebuildTree() {
+  const treeEl = document.getElementById('sidebar-tree');
+  treeEl.innerHTML = '';
+  if (!rootTreeNode) return;
+  const inner = renderTree(rootTreeNode);
+  treeEl.appendChild(inner);
+}
+
+/* ========== Open / Save ========== */
+async function pickFolder() {
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    await useFolder(handle);
+    await saveHandle(handle);
+  } catch (e) {
+    if (e.name !== 'AbortError') showToast('フォルダを開けませんでした: ' + e.message, 'error');
+  }
+}
+
+async function useFolder(handle) {
+  state.rootHandle = handle;
+  state.rootName = handle.name;
+  state.fileMap.clear();
+  state.folderOpen.clear();
+  document.getElementById('folder-name').textContent = handle.name;
+  document.getElementById('file-path').textContent = '';
+  // Build tree
+  const tree = await walkDirectory(handle);
+  rootTreeNode = tree;
+  rebuildTree();
+}
+
+async function openFile(path) {
+  const info = state.fileMap.get(path);
+  if (!info) return;
+  try {
+    const file = await info.handle.getFile();
+    const text = await file.text();
+    state.currentPath = path;
+    state.currentHandle = info.handle;
+    state.currentText = text;
+    state.dirty = false;
+    document.getElementById('editor').value = text;
+    document.getElementById('file-path').textContent = path.split('/').slice(1).join(' / ');
+    updateSaveBtn();
+    rebuildTree();
+    // re-render preview
+    await renderPreview(text);
+    // scroll to top
+    document.getElementById('preview').parentElement.scrollTop = 0;
+    document.getElementById('editor').scrollTop = 0;
+  } catch (e) {
+    showToast('ファイル読み込みエラー: ' + e.message, 'error');
+  }
+}
+
+async function saveCurrent() {
+  if (!state.currentHandle || !state.dirty) return;
+  const text = document.getElementById('editor').value;
+  try {
+    const ok = await verifyPermission(state.rootHandle, true);
+    if (!ok) {
+      showToast('書き込み権限がありません', 'error');
+      return;
+    }
+    const writable = await state.currentHandle.createWritable();
+    await writable.write(text);
+    await writable.close();
+    state.currentText = text;
+    state.dirty = false;
+    updateSaveBtn();
+    rebuildTree();
+    showToast('保存しました', 'success');
+  } catch (e) {
+    showToast('保存エラー: ' + e.message, 'error');
+  }
+}
+
+async function confirmSwitchAway() {
+  if (!state.dirty) return true;
+  return confirm('変更が保存されていません。破棄して切り替えますか？');
+}
+
+/* ========== UI helpers ========== */
+function showToast(text, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = text;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), 1800);
+}
+
+function updateSaveBtn() {
+  document.getElementById('btn-save').disabled = !state.dirty;
+}
+
+function setMode(mode) {
+  state.mode = mode;
+  const main = document.getElementById('main');
+  main.classList.remove('preview-only', 'edit-only', 'split');
+  if (mode === 'preview') main.classList.add('preview-only');
+  else if (mode === 'edit') main.classList.add('edit-only');
+  else main.classList.add('split');
+  // Update tabs
+  document.querySelectorAll('.mode-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  // Re-render preview when switching to a mode that shows it
+  if ((mode === 'preview' || mode === 'split') && state.currentPath) {
+    renderPreview(document.getElementById('editor').value);
+  }
+  // Focus editor
+  if (mode === 'edit' || mode === 'split') {
+    setTimeout(() => document.getElementById('editor').focus(), 50);
+  }
+  // Persist
+  try { localStorage.setItem('md-studio:mode', mode); } catch (e) {}
+}
+
+/* ========== Editor events ========== */
+const editor = document.getElementById('editor');
+let renderTimer = null;
+editor.addEventListener('input', () => {
+  if (!state.currentPath) return;
+  const text = editor.value;
+  const isDirty = text !== state.currentText;
+  if (isDirty !== state.dirty) {
+    state.dirty = isDirty;
+    updateSaveBtn();
+    rebuildTree();
+  }
+  if (state.mode === 'split') {
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => renderPreview(text), 180);
+  }
+});
+
+// Tab key inserts 2 spaces
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, start) + '  ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = start + 2;
+    editor.dispatchEvent(new Event('input'));
+  } else if (e.key === 'Enter') {
+    // List auto-continuation
+    const start = editor.selectionStart;
+    const val = editor.value;
+    const lineStart = val.lastIndexOf('\n', start - 1) + 1;
+    const line = val.substring(lineStart, start);
+    const m = line.match(/^(\s*)([-*]\s+\[[ x]\]\s+|[-*]\s+|\d+\.\s+)/);
+    if (m) {
+      const indent = m[1];
+      let marker = m[2];
+      // If the line has just the marker and no content, remove it instead of continuing
+      const content = line.substring(m[0].length);
+      if (!content.trim()) {
+        e.preventDefault();
+        editor.value = val.substring(0, lineStart) + val.substring(start);
+        editor.selectionStart = editor.selectionEnd = lineStart;
+        editor.dispatchEvent(new Event('input'));
+        return;
+      }
+      // Ordered list: increment number
+      const numMatch = marker.match(/^(\d+)\.\s+$/);
+      if (numMatch) {
+        marker = (parseInt(numMatch[1], 10) + 1) + '. ';
+      }
+      // Task list: reset to unchecked
+      marker = marker.replace(/\[x\]/i, '[ ]');
+      e.preventDefault();
+      const insert = '\n' + indent + marker;
+      editor.value = val.substring(0, start) + insert + val.substring(start);
+      editor.selectionStart = editor.selectionEnd = start + insert.length;
+      editor.dispatchEvent(new Event('input'));
+    }
+  }
+});
+
+/* ========== Global keyboard ========== */
+window.addEventListener('keydown', (e) => {
+  const meta = e.metaKey || e.ctrlKey;
+  if (meta && e.key === 's') {
+    e.preventDefault();
+    saveCurrent();
+  } else if (meta && e.key === 'e') {
+    e.preventDefault();
+    setMode(state.mode === 'edit' ? 'preview' : 'edit');
+  } else if (meta && e.key === 'p') {
+    e.preventDefault();
+    document.getElementById('search-input').focus();
+  }
+});
+
+window.addEventListener('beforeunload', (e) => {
+  if (state.dirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+/* ========== Wire up buttons ========== */
+document.getElementById('btn-open').addEventListener('click', pickFolder);
+document.getElementById('btn-save').addEventListener('click', saveCurrent);
+document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+  document.getElementById('app').classList.toggle('sidebar-collapsed');
+});
+
+document.querySelectorAll('.mode-tab').forEach(t => {
+  t.addEventListener('click', () => setMode(t.dataset.mode));
+});
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  state.filter = e.target.value.trim();
+  rebuildTree();
+});
+
+// Wiki-link delegated click
+document.getElementById('preview').addEventListener('click', async (e) => {
+  const a = e.target.closest('.wikilink');
+  if (!a) return;
+  e.preventDefault();
+  const target = a.dataset.target;
+  const info = findFileByBaseName(target);
+  if (!info) {
+    showToast(`${target} は見つかりません`, 'error');
+    return;
+  }
+  if (await confirmSwitchAway()) {
+    await openFile(info.path);
+  }
+});
+
+/* ========== Restore last session ========== */
+(async function init() {
+  // Restore mode
+  try {
+    const m = localStorage.getItem('md-studio:mode');
+    if (m === 'preview' || m === 'edit' || m === 'split') setMode(m);
+  } catch (e) {}
+
+  // Restore directory handle
+  try {
+    const handle = await loadHandle();
+    if (handle) {
+      const ok = await verifyPermission(handle, true);
+      if (ok) {
+        await useFolder(handle);
+      } else {
+        // show a small hint: click open to re-grant
+        document.getElementById('sidebar-tree').innerHTML = `
+          <div class="empty-state">
+            <strong>${escapeHtml(handle.name)}</strong>
+            前回のフォルダへのアクセス権を取得できませんでした。<br>
+            「Open Folder」をクリックして再選択するか、<br>
+            <a href="javascript:void(0)" id="regrant" style="color:var(--accent);font-weight:600;">こちらをクリックして権限を再要求</a>
+          </div>`;
+        document.getElementById('regrant').addEventListener('click', async () => {
+          const granted = await verifyPermission(handle, true);
+          if (granted) await useFolder(handle);
+          else showToast('権限が拒否されました', 'error');
+        });
+      }
+    }
+  } catch (e) {
+    console.warn('restore failed', e);
+  }
+})();
+</script>
+</body>
+</html>
