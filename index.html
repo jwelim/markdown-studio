@@ -627,6 +627,13 @@ a:hover { text-decoration: underline; }
   border: 1px solid var(--border-light);
 }
 
+.md-body pre.mermaid-pre {
+  background: none;
+  border: none;
+  padding: 0;
+  overflow: visible;
+}
+
 .md-body table {
   width: 100%;
   border-collapse: separate;
@@ -659,6 +666,28 @@ a:hover { text-decoration: underline; }
   box-shadow: var(--shadow-card);
   margin: 1em 0;
   display: block;
+}
+
+/* Cursor-line highlight (split mode) */
+.preview-content .cursor-line-highlight {
+  position: relative;
+}
+.preview-content .cursor-line-highlight::after {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 4px;
+  background: var(--accent);
+  border-radius: 100px;
+  pointer-events: none;
+  box-shadow: 0 0 14px 1px var(--accent);
+  animation: cursor-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cursor-pulse {
+  0%, 100% { opacity: 0.65; }
+  50% { opacity: 1; }
 }
 
 /* Wiki-link */
@@ -1031,11 +1060,557 @@ a:hover { text-decoration: underline; }
   color: var(--accent);
 }
 
+/* ===== COMMENTS（Claude Code 向け修正指示） ===== */
+:root {
+  --cmt-hl: rgba(255, 160, 15, 0.26);
+  --cmt-line: rgba(255, 160, 15, 0.6);
+}
+[data-theme="dark"] {
+  --cmt-hl: rgba(255, 179, 64, 0.22);
+  --cmt-line: rgba(255, 179, 64, 0.55);
+}
+
+.icon-btn[hidden] { display: none; }
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: none;
+  color: var(--sub-text);
+}
+
+.btn-comments.active {
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+.btn-comments .count {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 100px;
+  background: var(--amber);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.btn-comments .count[hidden] { display: none; }
+
+/* プレビュー上の目印 */
+.preview-content { position: relative; }
+.cmt-mark {
+  outline: 2px solid var(--cmt-line);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.cmt-draft {
+  outline: 2px dashed var(--accent);
+  outline-offset: 4px;
+  border-radius: 6px;
+}
+.md-body tr.cmt-mark, .md-body tr.cmt-draft { outline-offset: -2px; }
+.cmt-flash { animation: cmt-flash 1.4s ease-out; }
+@keyframes cmt-flash {
+  0% { box-shadow: 0 0 0 10px var(--cmt-hl); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+::highlight(md-comment) { background-color: var(--cmt-hl); }
+
+.cmt-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+.cmt-pin {
+  position: absolute;
+  right: -40px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 100px 100px 100px 4px;
+  background: var(--amber);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  box-shadow: 0 3px 10px rgba(255, 160, 15, 0.35);
+  transition: transform 0.15s;
+}
+.cmt-pin:hover { transform: scale(1.12); }
+
+.cmt-hover-add {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-radius: 100px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: var(--card);
+  color: var(--accent);
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-soft);
+  z-index: 4;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.cmt-hover-add.show { display: inline-flex; }
+.cmt-hover-add:hover {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.cmt-sel-btn {
+  position: fixed;
+  z-index: 60;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 100px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: var(--shadow-btn);
+}
+.cmt-sel-btn.show { display: inline-flex; animation: cmt-pop 0.16s ease-out; }
+.cmt-sel-btn:hover { background: var(--accent-hover); }
+@keyframes cmt-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+
+/* サイドバーの件数 */
+.cmt-count-pill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+  flex-shrink: 0;
+}
+.tree-node.active .cmt-count-pill {
+  background: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* コメントパネル */
+.comment-panel {
+  width: clamp(300px, 28vw, 360px);
+  flex-shrink: 0;
+  height: 100%;
+  display: none;
+  flex-direction: column;
+  background: var(--card);
+  border-left: 1px solid var(--border-light);
+  min-width: 0;
+}
+.main.comments-open .comment-panel { display: flex; }
+
+.cp-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 12px 12px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.cp-head-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.cp-title {
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cp-count {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 8px;
+  border-radius: 100px;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+}
+.cp-file {
+  font-size: 12px;
+  color: var(--sub-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cp-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.cp-body::-webkit-scrollbar { width: 8px; }
+.cp-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.cp-dynamic {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cp-empty {
+  color: var(--sub-text);
+  font-size: 13px;
+  line-height: 1.8;
+  text-align: center;
+  padding: 24px 8px;
+}
+
+.cp-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cp-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 13px;
+  border-radius: 100px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  transition: 0.2s;
+}
+.cp-act:hover { background: var(--accent); color: #fff; }
+.cp-act:disabled {
+  opacity: 0.45;
+  cursor: default;
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.cp-act kbd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  opacity: 0.7;
+}
+
+.cp-notice {
+  font-size: 12.5px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--amber-bg);
+  color: var(--amber-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cp-notice.info { background: var(--accent-bg); color: var(--accent); }
+.cp-notice button {
+  margin-left: auto;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 100px;
+  background: var(--card);
+  color: inherit;
+  white-space: nowrap;
+}
+
+details.cp-sec {
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  background: var(--sub-card);
+}
+details.cp-sec > summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--sub-text);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+details.cp-sec > summary::-webkit-details-marker { display: none; }
+details.cp-sec > summary svg { transition: transform 0.18s; flex-shrink: 0; }
+details.cp-sec[open] > summary svg { transform: rotate(90deg); }
+.cp-sec-state {
+  margin-left: auto;
+  font-size: 10.5px;
+  padding: 1px 8px;
+  border-radius: 100px;
+  background: var(--border-light);
+  color: var(--sub-text);
+}
+.cp-sec-state.ok { background: var(--green-bg); color: var(--green); }
+.cp-sec-body {
+  padding: 0 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.cp-input, .cp-textarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  background: var(--card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cp-input:focus, .cp-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(79, 124, 230, 0.12);
+}
+.cp-textarea {
+  resize: vertical;
+  min-height: 64px;
+  max-height: 260px;
+  line-height: 1.6;
+  field-sizing: content;
+}
+.cp-hint {
+  font-size: 11.5px;
+  color: var(--sub-text);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.cp-composer {
+  border: 1.5px solid var(--accent);
+  border-radius: 18px;
+  padding: 12px;
+  background: var(--accent-bg);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-composer-head {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+.cp-composer .cp-textarea { min-height: 84px; }
+.cp-composer-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.cp-composer-foot .hint {
+  margin-right: auto;
+  font-size: 11px;
+  color: var(--sub-text);
+}
+.btn-sm {
+  padding: 7px 14px;
+  font-size: 12.5px;
+}
+.btn-primary.btn-sm { box-shadow: none; }
+.btn-ghost.active { background: var(--accent); color: #fff; }
+
+.cmt-card {
+  border: 1px solid var(--border-light);
+  border-radius: 18px;
+  padding: 11px 12px 12px;
+  background: var(--card);
+  box-shadow: 0 2px 10px rgba(20, 40, 90, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+.cmt-card:hover { border-color: var(--border); }
+.cmt-card.changed { border-style: dashed; border-color: var(--amber); }
+.cmt-card.flash { animation: cmt-card-flash 1.4s ease-out; }
+@keyframes cmt-card-flash {
+  0% { box-shadow: 0 0 0 5px var(--cmt-hl); border-color: var(--amber); }
+  100% { box-shadow: 0 2px 10px rgba(20, 40, 90, 0.04); }
+}
+.cmt-card-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.cmt-card-head .spacer { flex: 1; }
+.cmt-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 100px 100px 100px 4px;
+  background: var(--amber);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.cmt-card.file .cmt-num { background: var(--accent); }
+.cmt-loc {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+.cmt-loc:hover { background: var(--accent-bg); color: var(--accent); }
+.cmt-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: -2px;
+}
+.cmt-chip {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+.cmt-chip.sent { background: var(--green-bg); color: var(--green); }
+.cmt-chip.moved { background: var(--accent-bg); color: var(--accent); }
+.cmt-chip.changed { background: var(--amber-bg); color: var(--amber-text); }
+.cmt-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub-text);
+  flex-shrink: 0;
+  transition: 0.15s;
+}
+.cmt-icon:hover { background: var(--accent-bg); color: var(--accent); }
+.cmt-icon.danger:hover { background: var(--red-bg); color: var(--red); }
+.cmt-quote {
+  font-size: 12.5px;
+  color: var(--sub-text);
+  line-height: 1.6;
+  padding: 5px 10px;
+  border-left: 3px solid var(--cmt-line);
+  background: var(--sub-card);
+  border-radius: 4px 10px 10px 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+.cmt-card .cp-textarea {
+  min-height: 40px;
+  background: var(--bg);
+  border-color: transparent;
+  cursor: text;
+}
+.cmt-card .cp-textarea:focus { background: var(--card); border-color: var(--accent); }
+.cmt-body-text {
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--sub-text);
+}
+.cp-resolved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cp-resolved-list .cmt-card { cursor: default; opacity: 0.8; }
+
+.cp-foot {
+  border-top: 1px solid var(--border-light);
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--card);
+}
+.cp-foot-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.cp-foot-row .btn-primary {
+  flex: 1;
+  min-width: 0;
+  justify-content: center;
+  padding: 11px 14px;
+}
+#cp-copy-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-preview-btn { background: var(--accent-bg); color: var(--accent); flex-shrink: 0; }
+.cp-preview-btn.active { background: var(--accent); color: #fff; }
+.cp-prompt-preview {
+  max-height: 34vh;
+  overflow: auto;
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--sub-card);
+  border: 1px solid var(--border-light);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
 /* ===== RESPONSIVE ===== */
+/* ヘッダーのボタンが増えたので、狭い幅ではラベルを隠してアイコンだけにする */
+@media (max-width: 1180px) {
+  .header { gap: 10px; }
+  .btn-ghost .btn-text, .btn-comments .label { display: none; }
+  #btn-open, #btn-open-file { padding: 10px 12px; }
+  .btn-comments { padding: 10px 12px; }
+}
+
 @media (max-width: 880px) {
+  .comment-panel {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(360px, 100%);
+    z-index: 20;
+    box-shadow: var(--shadow-card);
+  }
+  .cmt-pin { right: -14px; }
+  .header-title { display: none; }
+  .header { overflow-x: auto; scrollbar-width: none; }
+  .header > * { flex-shrink: 0; }
   .app {
     grid-template-rows: 64px auto 1fr;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sidebar {
     max-height: 220px;
@@ -1043,7 +1618,8 @@ a:hover { text-decoration: underline; }
     border-bottom: 1px solid var(--border-light);
   }
   .app.sidebar-collapsed {
-    grid-template-columns: 1fr;
+    grid-template-rows: 64px 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .app.sidebar-collapsed .sidebar { display: none; }
   .preview-pane, .editor-pane { padding: 24px 18px 60px; }
@@ -1082,6 +1658,21 @@ a:hover { text-decoration: underline; }
       <button class="mode-tab" data-mode="split">Split</button>
     </div>
 
+    <button class="btn-ghost btn-comments" id="btn-comments" title="コメント（Claude Code への修正指示）">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="label">コメント</span>
+      <span class="count" id="cmt-count" hidden></span>
+    </button>
+
+    <button class="icon-btn" id="btn-reload" title="ディスクから再読込" disabled>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    </button>
+
     <button class="icon-btn theme-toggle" id="btn-theme" title="ライト/ダーク切替">
       <svg class="theme-icon-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <circle cx="12" cy="12" r="4"/>
@@ -1092,19 +1683,26 @@ a:hover { text-decoration: underline; }
       </svg>
     </button>
 
+    <button class="icon-btn" id="btn-shutdown" title="サーバーを終了" hidden>
+      <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"/>
+        <line x1="12" y1="2" x2="12" y2="12"/>
+      </svg>
+    </button>
+
     <button class="btn-ghost" id="btn-open-file" title="単一の .md ファイルを開く（D&D も可）">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
         <polyline points="14 2 14 8 20 8"/>
       </svg>
-      Open File
+      <span class="btn-text">Open File</span>
     </button>
 
     <button class="btn-ghost" id="btn-open">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
       </svg>
-      Open Folder
+      <span class="btn-text">Open Folder</span>
     </button>
 
     <button class="btn-primary" id="btn-save" disabled>
@@ -1154,12 +1752,83 @@ a:hover { text-decoration: underline; }
             <p>左のサイドバーから .md ファイルを<br>クリックすると、ここにプレビューが表示されます</p>
           </div>
         </div>
+        <button class="cmt-hover-add" id="cmt-hover-add" title="このブロックにコメント">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
       </div>
+
+      <!-- COMMENT PANEL -->
+      <aside class="comment-panel" id="comment-panel" aria-label="コメント">
+        <div class="cp-head">
+          <div class="cp-head-text">
+            <div class="cp-title">コメント <span class="cp-count" id="cp-count">0</span></div>
+            <div class="cp-file" id="cp-file"></div>
+          </div>
+          <button class="icon-btn" id="cp-close" title="閉じる">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+        <div class="cp-body">
+          <details class="cp-sec" id="cp-path-sec" hidden>
+            <summary>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              ファイルの場所
+              <span class="cp-sec-state" id="cp-path-state"></span>
+            </summary>
+            <div class="cp-sec-body">
+              <label class="cp-label" id="cp-path-label" for="cp-path-input"></label>
+              <input class="cp-input" id="cp-path-input" type="text" spellcheck="false" autocomplete="off">
+              <div class="cp-hint" id="cp-path-hint"></div>
+            </div>
+          </details>
+          <div class="cp-dynamic" id="cp-dynamic"></div>
+        </div>
+        <div class="cp-foot">
+          <details class="cp-sec" id="cp-common-sec">
+            <summary>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              共通の指示
+              <span class="cp-sec-state" id="cp-common-state"></span>
+            </summary>
+            <div class="cp-sec-body">
+              <textarea class="cp-textarea" id="cp-common" spellcheck="false" placeholder="例: 修正後に git commit はしない&#10;例: 見出しの構成は変えない"></textarea>
+              <div class="cp-hint">1行ずつ、プロンプト末尾の「進め方」に追記されます</div>
+            </div>
+          </details>
+          <pre class="cp-prompt-preview" id="cp-prompt-preview" hidden></pre>
+          <div class="cp-foot-row">
+            <button class="icon-btn cp-preview-btn" id="cp-toggle-preview" title="生成されるプロンプトを表示">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+            <button class="btn-primary" id="cp-copy" disabled>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"/>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+              </svg>
+              <span id="cp-copy-label">プロンプトをコピー</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   </main>
 </div>
 
 <div class="toast" id="toast"></div>
+
+<button class="cmt-sel-btn" id="cmt-sel-btn" title="選択範囲にコメント（⌥⌘M）">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+  </svg>
+  コメント
+</button>
 
 <div class="drop-overlay" id="drop-overlay">
   <div class="drop-overlay-card">
@@ -1210,6 +1879,8 @@ const state = {
   currentPath: null,
   currentHandle: null,
   currentText: '',         // last loaded text from disk
+  currentMtime: 0,         // lastModified of the loaded file (ディスク変更の検知用)
+  diskWarnedMtime: 0,
   dirty: false,
   mode: 'preview',         // 'preview' | 'edit' | 'split'
   filter: '',
@@ -1217,17 +1888,44 @@ const state = {
 
 const EXT_PREFIX = '__ext__/';
 
-/* ========== IndexedDB (for directory handle persistence) ========== */
+/* コメント（Claude Code 向け修正指示）の状態 */
+const commentsByFile = new Map();   // path -> comment[]（IndexedDB と同期）
+const cmt = {
+  draft: null,           // 入力中のコメント { kind, startLine, endLine, quote, snippet }
+  anchors: new Map(),    // id -> 'ok' | 'moved' | 'changed'（表示専用・保存しない）
+  movedIds: new Set(),   // このセッションで位置を付け直したコメント
+  targets: new Map(),    // id -> プレビュー上の目印要素
+  showPrompt: false,
+  resolvedOpen: false,
+  pathSecFor: null,
+  lastSelSource: 'preview',
+  autoCollapsedSidebar: false,
+};
+
+/* ========== IndexedDB (directory handle + comments) ========== */
 const DB_NAME = 'markdown-studio';
 const DB_STORE = 'handles';
+const CMT_STORE = 'comments';
 
+let dbPromise = null;
 function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, 1);
-    req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 2);
+    // v1 → v2 でコメント用ストアを追加（既存のフォルダハンドルは残す）
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+      if (!db.objectStoreNames.contains(CMT_STORE)) db.createObjectStore(CMT_STORE);
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      db.onversionchange = () => { db.close(); dbPromise = null; };
+      resolve(db);
+    };
+    req.onerror = () => { dbPromise = null; reject(req.error); };
   });
+  return dbPromise;
 }
 async function saveHandle(handle) {
   const db = await openDB();
@@ -1263,7 +1961,8 @@ const md = window.markdownit({
   highlight: function (str, lang) {
     if (lang === 'mermaid') {
       const encoded = encodeURIComponent(str);
-      return `<div class="mermaid-block" data-source="${encoded}"></div>`;
+      // markdown-it は '<pre' で始まらない戻り値を <pre><code> で包むため、自前の <pre> で包む
+      return `<pre class="mermaid-pre"><div class="mermaid-block" data-source="${encoded}"></div></pre>`;
     }
     const escape = md.utils.escapeHtml;
     let code = '';
@@ -1283,14 +1982,15 @@ const md = window.markdownit({
 });
 /* Task lists: post-process after render (avoids extra dependency) */
 function postProcessTaskLists(html) {
+  // <li> / <p> には data-src などの属性が付くので、属性ごと残して置き換える
   return html
-    .replace(/<li>\s*\[([ xX])\]\s+/g, (m, c) => {
+    .replace(/<li([^>]*)>\s*\[([ xX])\]\s+/g, (m, attrs, c) => {
       const checked = c.trim() ? ' checked' : '';
-      return `<li class="task-list-item"><input type="checkbox" disabled${checked}> `;
+      return `<li class="task-list-item"${attrs}><input type="checkbox" disabled${checked}> `;
     })
-    .replace(/<li>\s*<p>\s*\[([ xX])\]\s+/g, (m, c) => {
+    .replace(/<li([^>]*)>\s*<p([^>]*)>\s*\[([ xX])\]\s+/g, (m, liAttrs, pAttrs, c) => {
       const checked = c.trim() ? ' checked' : '';
-      return `<li class="task-list-item"><p><input type="checkbox" disabled${checked}> `;
+      return `<li class="task-list-item"${liAttrs}><p${pAttrs}><input type="checkbox" disabled${checked}> `;
     });
 }
 
@@ -1318,6 +2018,29 @@ md.inline.ruler.after('emphasis', 'wikilink', function wikilink(state, silent) {
   state.pos = end + 2;
   return true;
 });
+/* Inject source line numbers on block tokens
+   - data-line: top-level blocks only (split-mode cursor sync)
+   - data-src : "start:end" (0-based, end exclusive) on every block (コメントの位置合わせ) */
+md.core.ruler.push('line-numbers', function injectLineNumbers(state) {
+  const offset = (state.env && state.env.lineOffset) || 0;
+  state.tokens.forEach(function (token) {
+    if (!token.map) return;
+    const t = token.type;
+    if (!(t === 'fence' || t === 'hr' || t === 'code_block' || t.endsWith('_open'))) return;
+    if (token.level === 0) token.attrJoin('data-line', String(token.map[0] + offset));
+    token.attrSet('data-src', `${token.map[0] + offset}:${token.map[1] + offset}`);
+  });
+});
+
+/* highlight() が '<pre' 始まりを返すと既定の fence レンダラは属性を捨てるため、ここで <pre> に差し込む */
+const defaultFence = md.renderer.rules.fence;
+md.renderer.rules.fence = function (tokens, idx, options, env, self) {
+  const html = defaultFence(tokens, idx, options, env, self);
+  const token = tokens[idx];
+  if (!token.attrs || !html.startsWith('<pre')) return html;
+  return '<pre' + self.renderAttrs(token) + html.slice(4);
+};
+
 md.renderer.rules.wikilink = function (tokens, idx) {
   const { target, display } = tokens[idx].meta;
   const t = md.utils.escapeHtml(target);
@@ -1326,7 +2049,11 @@ md.renderer.rules.wikilink = function (tokens, idx) {
 };
 
 /* Mermaid init */
-window.mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', theme: 'default' });
+window.mermaid.initialize({
+  startOnLoad: false,
+  securityLevel: 'loose',
+  theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'default',
+});
 
 /* ========== Theme (light / dark) ========== */
 function applyTheme(theme) {
@@ -1452,12 +2179,14 @@ function getActiveMarkdown() {
 /* ========== Frontmatter ========== */
 function parseFrontmatter(text) {
   const m = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!m) return { meta: null, body: text };
+  if (!m) return { meta: null, body: text, lineOffset: 0 };
   try {
     const meta = window.jsyaml.load(m[1]) || {};
-    return { meta, body: m[2] };
+    const beforeBody = text.substring(0, text.length - m[2].length);
+    const lineOffset = beforeBody.split('\n').length - 1;
+    return { meta, body: m[2], lineOffset };
   } catch (e) {
-    return { meta: null, body: text };
+    return { meta: null, body: text, lineOffset: 0 };
   }
 }
 
@@ -1479,10 +2208,10 @@ function formatMetaValue(v) {
   return String(v);
 }
 
-function renderFrontmatter(meta) {
+function renderFrontmatter(meta, lineOffset = 0) {
   if (!meta || typeof meta !== 'object') return '';
   const escape = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  let html = '<div class="frontmatter-card">';
+  let html = `<div class="frontmatter-card" data-line="0" data-src="0:${lineOffset}">`;
 
   if (meta.title) {
     html += `<h1 class="frontmatter-title">${escape(meta.title)}</h1>`;
@@ -1521,12 +2250,14 @@ function renderFrontmatter(meta) {
 
 /* ========== Rendering ========== */
 let mermaidCounter = 0;
+let renderSeq = 0;
 async function renderPreview(text) {
+  const seq = ++renderSeq;
   const previewEl = document.getElementById('preview');
-  const { meta, body } = parseFrontmatter(text);
+  const { meta, body, lineOffset } = parseFrontmatter(text);
 
-  const html = postProcessTaskLists(md.render(body));
-  const fmHtml = renderFrontmatter(meta);
+  const html = postProcessTaskLists(md.render(body, { lineOffset }));
+  const fmHtml = renderFrontmatter(meta, lineOffset);
 
   previewEl.innerHTML = fmHtml + `<div class="md-body">${html}</div>`;
 
@@ -1545,6 +2276,7 @@ async function renderPreview(text) {
   // Render mermaid blocks
   const mermaidBlocks = previewEl.querySelectorAll('.mermaid-block');
   for (const block of mermaidBlocks) {
+    if (seq !== renderSeq) return; // 新しいレンダーが始まっていたら中断
     const source = decodeURIComponent(block.dataset.source);
     const id = 'mermaid-' + (++mermaidCounter);
     try {
@@ -1567,6 +2299,59 @@ async function renderPreview(text) {
       throwOnError: false,
     });
   } catch (e) { /* ignore */ }
+
+  // コメントの位置を付け直して目印を描く
+  if (seq !== renderSeq) return;
+  reanchorComments(text);
+  applyCommentMarkers();
+  renderCommentPanel();
+}
+
+/* ========== Split-mode cursor sync ========== */
+function findPreviewElementForLine(line) {
+  const els = document.querySelectorAll('#preview [data-line]');
+  let best = null;
+  for (let i = 0; i < els.length; i++) {
+    const v = parseInt(els[i].dataset.line, 10);
+    if (Number.isNaN(v)) continue;
+    if (v <= line) best = els[i];
+    else break;
+  }
+  return best;
+}
+
+function clearCursorHighlight() {
+  document.querySelectorAll('#preview .cursor-line-highlight').forEach(e => e.classList.remove('cursor-line-highlight'));
+}
+
+function syncPreviewToCursor() {
+  if (state.mode !== 'split') return;
+  const ta = document.getElementById('editor');
+  const cursorLine = ta.value.substring(0, ta.selectionStart).split('\n').length - 1;
+  const el = findPreviewElementForLine(cursorLine);
+  clearCursorHighlight();
+  if (!el) return;
+  el.classList.add('cursor-line-highlight');
+
+  // Scroll only if element is not visibly in the pane
+  const pane = document.querySelector('.main .preview-pane');
+  if (!pane) return;
+  const elRect = el.getBoundingClientRect();
+  const paneRect = pane.getBoundingClientRect();
+  const fullyInView = elRect.top >= paneRect.top + 24 && elRect.bottom <= paneRect.bottom - 24;
+  if (!fullyInView) {
+    const target = pane.scrollTop + elRect.top - paneRect.top - 80;
+    pane.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+  }
+}
+
+let syncRaf = null;
+function scheduleCursorSync() {
+  if (syncRaf) return;
+  syncRaf = requestAnimationFrame(() => {
+    syncRaf = null;
+    syncPreviewToCursor();
+  });
 }
 
 /* Find file in fileMap or externalFiles by basename (with or without .md) */
@@ -1587,9 +2372,7 @@ async function walkDirectory(handle, parentPath = '') {
   for await (const [name, child] of handle.entries()) {
     if (name.startsWith('.')) continue;
     if (child.kind === 'directory') {
-      const subPath = `${node.path}/${name}`;
-      const subHandle = await handle.getDirectoryHandle(name);
-      const childNode = await walkDirectory(subHandle, node.path);
+      const childNode = await walkDirectory(child, node.path);
       if (childNode.children.length > 0) node.children.push(childNode);
     } else if (child.kind === 'file' && name.toLowerCase().endsWith('.md')) {
       const path = `${node.path}/${name}`;
@@ -1655,6 +2438,7 @@ function renderTree(node, depth = 0) {
         <span style="width:14px;flex-shrink:0;"></span>
         <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         <span class="tree-label">${escapeHtml(displayName)}</span>
+        ${commentPill(child.path)}
         ${isDirty ? '<span class="dirty-dot"></span>' : ''}
       `;
       row.addEventListener('click', async () => {
@@ -1734,6 +2518,7 @@ function renderExternalList() {
       <span style="width:14px;flex-shrink:0;"></span>
       <svg class="tree-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
       <span class="tree-label">${escapeHtml(displayName)}</span>
+      ${commentPill(path)}
       ${isDirty ? '<span class="dirty-dot"></span>' : ''}
     `;
     row.addEventListener('click', async () => {
@@ -1812,15 +2597,25 @@ function updateHeaderRoot() {
   }
 }
 
-async function openFile(path) {
+async function openFile(path, opts = {}) {
   const info = state.fileMap.get(path) || state.externalFiles.get(path);
   if (!info) return;
+  const previewPane = document.getElementById('preview').parentElement;
+  const editorEl = document.getElementById('editor');
+  const keepScroll = opts.preserveScroll && state.currentPath === path
+    ? { preview: previewPane.scrollTop, editor: editorEl.scrollTop }
+    : null;
   try {
     const file = await info.handle.getFile();
     const text = await file.text();
+    if (state.currentPath !== path) {
+      cmt.draft = null;
+      cmt.movedIds.clear();
+    }
     state.currentPath = path;
     state.currentHandle = info.handle;
     state.currentText = text;
+    state.currentMtime = file.lastModified || 0;
     state.dirty = false;
     document.getElementById('editor').value = text;
     setVditorValue(text);
@@ -1834,11 +2629,18 @@ async function openFile(path) {
     }
     updateSaveBtn();
     rebuildTree();
+    try { localStorage.setItem('md-studio:lastPath', path); } catch (e) {}
+    document.getElementById('btn-reload').disabled = false;
+    updateCommentBadges();
     // re-render preview
     await renderPreview(text);
-    // scroll to top
-    document.getElementById('preview').parentElement.scrollTop = 0;
-    document.getElementById('editor').scrollTop = 0;
+    if (keepScroll) {
+      previewPane.scrollTop = keepScroll.preview;
+      editorEl.scrollTop = keepScroll.editor;
+    } else {
+      previewPane.scrollTop = 0;
+      editorEl.scrollTop = 0;
+    }
   } catch (e) {
     showToast('ファイル読み込みエラー: ' + e.message, 'error');
   }
@@ -1862,6 +2664,7 @@ async function saveCurrent() {
     await writable.close();
     state.currentText = text;
     state.dirty = false;
+    try { state.currentMtime = (await state.currentHandle.getFile()).lastModified || 0; } catch (e) {}
     updateSaveBtn();
     rebuildTree();
     showToast('保存しました', 'success');
@@ -1918,14 +2721,26 @@ function setMode(mode) {
 
   // Re-render preview when switching to a mode that shows it
   if ((mode === 'preview' || mode === 'split') && state.currentPath) {
-    renderPreview(currentText);
+    renderPreview(currentText).then(() => {
+      if (mode === 'split') syncPreviewToCursor();
+    });
+  } else if (mode !== 'split') {
+    clearCursorHighlight();
   }
   // Focus
   if (mode === 'split') {
-    setTimeout(() => document.getElementById('editor').focus(), 50);
+    setTimeout(() => {
+      document.getElementById('editor').focus();
+      scheduleCursorSync();
+    }, 50);
   } else if (mode === 'edit' && vditor) {
     setTimeout(() => { try { vditor.focus(); } catch (e) {} }, 50);
   }
+  // Comments: Edit モードでは目印・追加 UI を隠す
+  hideSelectionButton();
+  hideHoverAdd(true);
+  if (mode === 'edit') applyCommentMarkers();
+  renderCommentPanel();
   // Persist
   try { localStorage.setItem('md-studio:mode', mode); } catch (e) {}
 }
@@ -1944,12 +2759,22 @@ editor.addEventListener('input', () => {
   }
   if (state.mode === 'split') {
     clearTimeout(renderTimer);
-    renderTimer = setTimeout(() => renderPreview(text), 180);
+    renderTimer = setTimeout(async () => {
+      await renderPreview(text);
+      syncPreviewToCursor();
+    }, 180);
   }
+});
+
+editor.addEventListener('click', scheduleCursorSync);
+editor.addEventListener('focus', scheduleCursorSync);
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement === editor) scheduleCursorSync();
 });
 
 // Tab key inserts 2 spaces
 editor.addEventListener('keydown', (e) => {
+  if (e.isComposing || e.keyCode === 229) return; // IME変換確定のEnter/Tabを誤処理しない
   if (e.key === 'Tab') {
     e.preventDefault();
     const start = editor.selectionStart;
@@ -1995,19 +2820,29 @@ editor.addEventListener('keydown', (e) => {
 /* ========== Global keyboard ========== */
 window.addEventListener('keydown', (e) => {
   const meta = e.metaKey || e.ctrlKey;
-  if (meta && e.key === 's') {
+  const key = (e.key || '').toLowerCase();
+  if (meta && key === 's') {
     e.preventDefault();
     saveCurrent();
-  } else if (meta && e.key === 'e') {
+  } else if (meta && key === 'e') {
     e.preventDefault();
     setMode(state.mode === 'edit' ? 'preview' : 'edit');
-  } else if (meta && e.key === 'p') {
+  } else if (meta && key === 'p') {
     e.preventDefault();
     document.getElementById('search-input').focus();
+  } else if (meta && e.altKey && e.code === 'KeyM') {
+    // ⌥⌘M: 選択範囲（Split では生テキストの選択／カーソル行）にコメント
+    e.preventDefault();
+    addCommentFromSelection();
+  } else if (key === 'escape') {
+    hideSelectionButton();
   }
 });
 
+window.addEventListener('pagehide', flushPendingComments);
+
 window.addEventListener('beforeunload', (e) => {
+  flushPendingComments();
   if (state.dirty) {
     e.preventDefault();
     e.returnValue = '';
@@ -2020,8 +2855,18 @@ document.getElementById('btn-open-file').addEventListener('click', pickFile);
 document.getElementById('btn-save').addEventListener('click', saveCurrent);
 document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
   document.getElementById('app').classList.toggle('sidebar-collapsed');
+  cmt.autoCollapsedSidebar = false;   // 手動で切り替えたらパネルを閉じても戻さない
 });
 document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+// 終了ボタンはローカルの serve.js 経由のときだけ（GitHub Pages には /api/shutdown が無い）
+if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+  document.getElementById('btn-shutdown').hidden = false;
+}
+document.getElementById('btn-shutdown').addEventListener('click', () => {
+  if (!confirm('サーバーを終了しますか？（このタブは閉じてください）')) return;
+  fetch('/api/shutdown', { method: 'POST' }).catch(() => {});
+  document.body.innerHTML = '<div style="padding:40px;font-size:18px;">サーバーを終了しました。このタブを閉じてください。</div>';
+});
 
 /* ========== Drag & Drop ========== */
 const dropOverlay = document.getElementById('drop-overlay');
@@ -2124,7 +2969,1029 @@ document.getElementById('preview').addEventListener('click', async (e) => {
   }
 });
 
+/* ========== Comments（Claude Code 向け修正指示） ========== */
+const ICON = {
+  check: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  trash: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
+  undo: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>',
+  file: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  select: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/></svg>',
+  chevron: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+};
+
+/* ----- 保存（IndexedDB） ----- */
+async function loadAllComments() {
+  const db = await openDB();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction(CMT_STORE, 'readonly');
+    const store = tx.objectStore(CMT_STORE);
+    const keysReq = store.getAllKeys();
+    const valsReq = store.getAll();
+    tx.oncomplete = () => {
+      keysReq.result.forEach((k, i) => {
+        const list = valsReq.result[i];
+        if (Array.isArray(list) && list.length) commentsByFile.set(k, list);
+      });
+      resolve();
+    };
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+const persistTimers = new Map();
+function persistComments(path, immediate = true) {
+  if (!path) return;
+  clearTimeout(persistTimers.get(path));
+  persistTimers.delete(path);
+  const run = async () => {
+    persistTimers.delete(path);
+    try {
+      const db = await openDB();
+      const list = commentsByFile.get(path) || [];
+      const store = db.transaction(CMT_STORE, 'readwrite').objectStore(CMT_STORE);
+      if (list.length) store.put(list, path);
+      else store.delete(path);
+    } catch (e) {
+      console.warn('comment save failed', e);
+    }
+  };
+  if (immediate) run();
+  else persistTimers.set(path, setTimeout(run, 400));
+}
+function flushPendingComments() {
+  for (const path of Array.from(persistTimers.keys())) persistComments(path, true);
+}
+
+/* ----- 参照ヘルパー ----- */
+function commentsFor(path) { return (path && commentsByFile.get(path)) || []; }
+function openCommentsFor(path) { return commentsFor(path).filter(c => c.status !== 'resolved'); }
+function sortedOpenComments() {
+  return openCommentsFor(state.currentPath).slice()
+    .sort((a, b) => (a.startLine - b.startLine) || (a.createdAt - b.createdAt));
+}
+function findComment(id) { return commentsFor(state.currentPath).find(c => c.id === id) || null; }
+function commentPill(path) {
+  const n = openCommentsFor(path).length;
+  return n ? `<span class="cmt-count-pill" title="未解決のコメント ${n}件">${n}</span>` : '';
+}
+function normalizeWs(s) { return String(s || '').replace(/\s+/g, ' ').trim(); }
+function lineLabel(c) {
+  if (c.kind === 'file') return 'ファイル全体';
+  return c.startLine === c.endLine ? `${c.startLine + 1}行目` : `${c.startLine + 1}〜${c.endLine + 1}行目`;
+}
+function srcRange(el) {
+  const [a, b] = el.dataset.src.split(':').map(Number);
+  return [a, b];
+}
+function newCommentId() {
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+/* ----- コメント下書きの作成 ----- */
+function makeRangeDraft(s, e, quote) {
+  const lines = document.getElementById('editor').value.split('\n');
+  s = Math.max(0, Math.min(s, lines.length - 1));
+  e = Math.max(s, Math.min(e, lines.length - 1));
+  // ブロック末尾・先頭の空行は含めない
+  while (e > s && !lines[e].trim()) e--;
+  while (s < e && !lines[s].trim()) s++;
+  return {
+    kind: 'range',
+    startLine: s,
+    endLine: e,
+    quote: normalizeWs(quote).slice(0, 200),
+    snippet: lines.slice(s, e + 1).join('\n'),
+  };
+}
+
+function srcElementOf(node) {
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  return el ? el.closest('#preview [data-src]') : null;
+}
+
+/* 選択範囲のうち、実際に文字が選ばれているテキストノード（トリプルクリックで次ブロック先頭まで伸びる分を除く） */
+function selectedTextNodes(range) {
+  const root = range.commonAncestorContainer;
+  if (root.nodeType === 3) {
+    return root.data.slice(range.startOffset, range.endOffset).trim() ? [root] : [];
+  }
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const out = [];
+  let n;
+  while ((n = walker.nextNode())) {
+    if (!range.intersectsNode(n)) continue;
+    if (n.parentElement && n.parentElement.closest('.cmt-layer')) continue;
+    const s = n === range.startContainer ? range.startOffset : 0;
+    const e = n === range.endContainer ? range.endOffset : n.data.length;
+    if (e > s && n.data.slice(s, e).trim()) out.push(n);
+  }
+  return out;
+}
+
+function previewSelectionDraft() {
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount) return null;
+  const range = sel.getRangeAt(0);
+  if (!document.getElementById('preview').contains(range.commonAncestorContainer)) return null;
+  const nodes = selectedTextNodes(range);
+  if (!nodes.length) return null;
+  let s = Infinity, e = -Infinity;
+  for (const el of [srcElementOf(nodes[0]), srcElementOf(nodes[nodes.length - 1])]) {
+    if (!el) continue;
+    const [a, b] = srcRange(el);
+    s = Math.min(s, a);
+    e = Math.max(e, b - 1);
+  }
+  if (!Number.isFinite(s)) return null;
+  return makeRangeDraft(s, e, quoteFromNodes(range, nodes));
+}
+
+/* 引用文はテキストノードから組み立てる（コードの言語バッジや KaTeX の MathML を含めない） */
+function quoteFromNodes(range, nodes) {
+  let out = '';
+  let prevBlock = null;
+  for (const n of nodes) {
+    if (n.parentElement.closest('.code-lang, .katex-mathml')) continue;
+    const block = n.parentElement.closest('td, th, [data-src]');
+    if (prevBlock && block !== prevBlock) out += ' ';
+    prevBlock = block;
+    const s = n === range.startContainer ? range.startOffset : 0;
+    const e = n === range.endContainer ? range.endOffset : n.data.length;
+    out += n.data.slice(s, e);
+  }
+  return out;
+}
+
+function editorSelectionDraft() {
+  const ta = document.getElementById('editor');
+  const v = ta.value;
+  const a = ta.selectionStart, b = ta.selectionEnd;
+  const s = v.slice(0, a).split('\n').length - 1;
+  // 行末の改行まで選んだ場合は次の行を含めない
+  const endPos = (b > a && v[b - 1] === '\n') ? b - 1 : b;
+  const e = v.slice(0, endPos).split('\n').length - 1;
+  return makeRangeDraft(s, Math.max(s, e), v.slice(a, b));
+}
+
+function addCommentFromSelection() {
+  if (!state.currentPath) return;
+  if (state.mode === 'edit') {
+    showToast('コメントは Preview か Split で追加できます', 'error');
+    return;
+  }
+  let draft = null;
+  if (state.mode === 'split' && cmt.lastSelSource === 'editor') draft = editorSelectionDraft();
+  if (!draft) draft = previewSelectionDraft();
+  if (!draft && state.mode === 'split') draft = editorSelectionDraft();
+  if (!draft) {
+    showToast('プレビューで文字を選択してください', 'error');
+    return;
+  }
+  openComposer(draft);
+}
+
+function addFileComment() {
+  if (!state.currentPath) return;
+  openComposer({ kind: 'file', startLine: -1, endLine: -1, quote: '', snippet: '' });
+}
+
+function addBlockComment(el) {
+  const [a, b] = srcRange(el);
+  openComposer(makeRangeDraft(a, b - 1, ''));
+}
+
+/* ----- 入力欄 ----- */
+function openComposer(draft) {
+  if (!state.currentPath) return;
+  if (draft.kind === 'range' && state.mode === 'edit') {
+    showToast('コメントは Preview か Split で追加できます', 'error');
+    return;
+  }
+  cmt.draft = draft;
+  hideSelectionButton();
+  setPanelOpen(true);
+  renderCommentPanel();
+  applyCommentMarkers();
+  requestAnimationFrame(() => {
+    const ta = document.getElementById('cp-draft-body');
+    if (!ta) return;
+    ta.focus();
+    ta.scrollIntoView({ block: 'nearest' });
+  });
+}
+
+function cancelDraft() {
+  cmt.draft = null;
+  renderCommentPanel();
+  applyCommentMarkers();
+}
+
+function commitDraft() {
+  if (!cmt.draft || !state.currentPath) return;
+  const ta = document.getElementById('cp-draft-body');
+  const body = ta ? ta.value.trim() : '';
+  if (!body) {
+    showToast('指示を入力してください', 'error');
+    if (ta) ta.focus();
+    return;
+  }
+  const path = state.currentPath;
+  const c = { id: newCommentId(), ...cmt.draft, body, status: 'open', sentAt: null, createdAt: Date.now() };
+  commentsByFile.set(path, commentsFor(path).concat(c));
+  persistComments(path);
+  cmt.draft = null;
+  cmt.anchors.set(c.id, 'ok');
+  try { window.getSelection().removeAllRanges(); } catch (e) {}
+  refreshComments();
+}
+
+/* ----- 変更系 ----- */
+function updateComment(id, patch, immediate = true) {
+  const c = findComment(id);
+  if (!c) return null;
+  Object.assign(c, patch);
+  persistComments(state.currentPath, immediate);
+  return c;
+}
+function removeComments(pred) {
+  const path = state.currentPath;
+  const rest = commentsFor(path).filter(c => !pred(c));
+  if (rest.length) commentsByFile.set(path, rest);
+  else commentsByFile.delete(path);
+  persistComments(path);
+}
+function refreshComments() {
+  renderCommentPanel();
+  applyCommentMarkers();
+  rebuildTree();
+}
+
+/* ----- ファイル変更後の位置合わせ ----- */
+function linesMatchAt(lines, want, at) {
+  if (at < 0 || at + want.length > lines.length) return false;
+  for (let k = 0; k < want.length; k++) {
+    if (lines[at + k] !== want[k]) return false;
+  }
+  return true;
+}
+
+function reanchorComments(text) {
+  cmt.anchors.clear();
+  const path = state.currentPath;
+  const list = commentsFor(path);
+  if (!list.length) return;
+  const lines = text.split('\n');
+  let moved = false;
+  for (const c of list) {
+    if (c.kind !== 'range' || c.status === 'resolved' || !c.snippet.trim()) {
+      cmt.anchors.set(c.id, 'ok');
+      continue;
+    }
+    const want = c.snippet.split('\n');
+    if (linesMatchAt(lines, want, c.startLine)) {
+      cmt.anchors.set(c.id, cmt.movedIds.has(c.id) ? 'moved' : 'ok');
+      continue;
+    }
+    // 原文が別の位置にあれば、元の位置に一番近い所へ付け直す
+    let best = -1;
+    for (let i = 0; i + want.length <= lines.length; i++) {
+      if (!linesMatchAt(lines, want, i)) continue;
+      if (best < 0 || Math.abs(i - c.startLine) < Math.abs(best - c.startLine)) best = i;
+    }
+    if (best >= 0) {
+      c.startLine = best;
+      c.endLine = best + want.length - 1;
+      cmt.movedIds.add(c.id);
+      cmt.anchors.set(c.id, 'moved');
+      moved = true;
+    } else {
+      cmt.anchors.set(c.id, 'changed');
+    }
+  }
+  if (moved) persistComments(path, false);
+}
+
+/* ----- プレビュー上の目印 ----- */
+function findTargets(els, s, e) {
+  // 範囲に丸ごと入るブロックのうち一番外側
+  const inside = els.filter(x => x.a >= s && x.end <= e);
+  let picked = inside.filter(x => !inside.some(y => y !== x && y.el.contains(x.el)));
+  if (!picked.length) {
+    // ブロックの一部だけ → 開始行を含む一番内側のブロック
+    const containing = els.filter(x => x.a <= s && s <= x.end);
+    const inner = containing.find(x => !containing.some(y => y !== x && x.el.contains(y.el)));
+    picked = inner ? [inner] : [];
+  }
+  return picked.map(x => x.el);
+}
+
+function findTextRange(root, quote) {
+  const q = normalizeWs(quote);
+  if (!q) return null;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let norm = '';
+  const map = [];
+  let prevSpace = true;
+  let n;
+  while ((n = walker.nextNode())) {
+    const d = n.data;
+    for (let i = 0; i < d.length; i++) {
+      if (/\s/.test(d[i])) {
+        if (prevSpace) continue;
+        norm += ' ';
+        prevSpace = true;
+      } else {
+        norm += d[i];
+        prevSpace = false;
+      }
+      map.push([n, i]);
+    }
+  }
+  const idx = norm.indexOf(q);
+  if (idx < 0) return null;
+  const [sn, so] = map[idx];
+  const [en, eo] = map[idx + q.length - 1];
+  const r = document.createRange();
+  r.setStart(sn, so);
+  r.setEnd(en, eo + 1);
+  return r;
+}
+
+function applyCommentMarkers() {
+  const preview = document.getElementById('preview');
+  preview.querySelectorAll('.cmt-mark, .cmt-draft').forEach(el => el.classList.remove('cmt-mark', 'cmt-draft'));
+  const oldLayer = preview.querySelector(':scope > .cmt-layer');
+  if (oldLayer) oldLayer.remove();
+  cmt.targets.clear();
+  const canHighlight = !!(window.CSS && CSS.highlights && window.Highlight);
+  if (canHighlight) CSS.highlights.delete('md-comment');
+  if (!state.currentPath || state.mode === 'edit') return;
+
+  const lines = document.getElementById('editor').value.split('\n');
+  const els = Array.from(preview.querySelectorAll('[data-src]')).map(el => {
+    const [a, b] = srcRange(el);
+    let end = b - 1;
+    while (end > a && lines[end] !== undefined && !lines[end].trim()) end--;   // 末尾の空行を除く
+    return { el, a, end };
+  });
+  if (!els.length) return;
+
+  const layer = document.createElement('div');
+  layer.className = 'cmt-layer';
+  preview.appendChild(layer);
+  const baseTop = preview.getBoundingClientRect().top;
+  const pinCount = new Map();
+  const hlRanges = [];
+
+  sortedOpenComments().forEach((c, i) => {
+    if (c.kind !== 'range' || cmt.anchors.get(c.id) === 'changed') return;
+    const targets = findTargets(els, c.startLine, c.endLine);
+    if (!targets.length) return;
+    targets.forEach(el => el.classList.add('cmt-mark'));
+    const first = targets[0];
+    cmt.targets.set(c.id, first);
+    const k = pinCount.get(first) || 0;
+    pinCount.set(first, k + 1);
+    const pin = document.createElement('button');
+    pin.className = 'cmt-pin';
+    pin.dataset.id = c.id;
+    pin.textContent = String(i + 1);
+    pin.title = c.body;
+    pin.style.top = (first.getBoundingClientRect().top - baseTop + k * 28) + 'px';
+    layer.appendChild(pin);
+    if (canHighlight && c.quote) {
+      for (const el of targets) {
+        const r = findTextRange(el, c.quote);
+        if (r) { hlRanges.push(r); break; }
+      }
+    }
+  });
+
+  if (cmt.draft && cmt.draft.kind === 'range') {
+    findTargets(els, cmt.draft.startLine, cmt.draft.endLine).forEach(el => el.classList.add('cmt-draft'));
+  }
+  if (canHighlight && hlRanges.length) CSS.highlights.set('md-comment', new Highlight(...hlRanges));
+}
+
+let markerRaf = null;
+function scheduleMarkers() {
+  if (markerRaf) return;
+  markerRaf = requestAnimationFrame(() => {
+    markerRaf = null;
+    applyCommentMarkers();
+  });
+}
+
+function flashEl(el, cls) {
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+  clearTimeout(el._flashTimer);
+  el._flashTimer = setTimeout(() => el.classList.remove(cls), 1500);
+}
+
+function jumpToComment(id) {
+  const c = findComment(id);
+  if (!c || c.kind !== 'range') return;
+  if (state.mode === 'edit') {
+    showToast('Preview か Split で位置を表示できます');
+    return;
+  }
+  const el = cmt.targets.get(id);
+  if (!el || !el.isConnected) {
+    showToast(cmt.anchors.get(id) === 'changed' ? '該当箇所が見つかりません（変更済みの可能性）' : '位置を表示できません', 'error');
+    return;
+  }
+  const pane = document.querySelector('.main .preview-pane');
+  const er = el.getBoundingClientRect();
+  const pr = pane.getBoundingClientRect();
+  pane.scrollTo({ top: Math.max(0, pane.scrollTop + er.top - pr.top - 80), behavior: 'smooth' });
+  flashEl(el, 'cmt-flash');
+}
+
+function focusCommentCard(id) {
+  setPanelOpen(true);
+  const card = document.querySelector(`#cp-dynamic .cmt-card[data-id="${id}"]`);
+  if (!card) return;
+  card.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  flashEl(card, 'flash');
+}
+
+/* ----- ファイルの場所（File System Access API では絶対パスが取れないため手入力） ----- */
+function pathSettings() {
+  try { return JSON.parse(localStorage.getItem('md-studio:paths') || '{}') || {}; }
+  catch (e) { return {}; }
+}
+function currentPathKey() {
+  if (!state.currentPath) return null;
+  return state.currentPath.startsWith(EXT_PREFIX) ? 'file:' + state.currentPath : 'root:' + state.rootName;
+}
+function savePathSetting(key, val) {
+  const all = pathSettings();
+  if (val) all[key] = val;
+  else delete all[key];
+  try { localStorage.setItem('md-studio:paths', JSON.stringify(all)); } catch (e) {}
+}
+function resolveTargetPath() {
+  const path = state.currentPath;
+  if (!path) return { display: '', absolute: false };
+  const saved = (pathSettings()[currentPathKey()] || '').trim();
+  if (path.startsWith(EXT_PREFIX)) {
+    const name = path.slice(EXT_PREFIX.length);
+    return saved ? { display: saved, absolute: true } : { display: name, absolute: false };
+  }
+  const rel = path.split('/').slice(1).join('/');
+  return saved
+    ? { display: saved.replace(/\/+$/, '') + '/' + rel, absolute: true }
+    : { display: `${state.rootName}/${rel}`, absolute: false };
+}
+
+function renderPathSection() {
+  const sec = document.getElementById('cp-path-sec');
+  if (!state.currentPath) { sec.hidden = true; return; }
+  sec.hidden = false;
+  const isExt = state.currentPath.startsWith(EXT_PREFIX);
+  const input = document.getElementById('cp-path-input');
+  document.getElementById('cp-path-label').textContent = isExt
+    ? 'このファイルの絶対パス'
+    : `フォルダ「${state.rootName}」の絶対パス`;
+  input.placeholder = isExt ? '/Users/…/ファイル名.md' : `/Users/…/${state.rootName}`;
+  if (document.activeElement !== input) input.value = pathSettings()[currentPathKey()] || '';
+  const t = resolveTargetPath();
+  const stateEl = document.getElementById('cp-path-state');
+  stateEl.textContent = t.absolute ? '設定済み' : '未設定';
+  stateEl.classList.toggle('ok', t.absolute);
+  document.getElementById('cp-path-hint').textContent = t.absolute
+    ? `出力: ${t.display}`
+    : '未設定のときは相対パスで出力し、Claude Code にファイルを探してもらいます';
+  // ファイルを切り替えたときだけ、未設定なら開いておく
+  if (cmt.pathSecFor !== state.currentPath) {
+    cmt.pathSecFor = state.currentPath;
+    sec.open = !t.absolute;
+  }
+}
+
+/* ----- プロンプト生成 ----- */
+function fenceFor(text) {
+  const runs = text.match(/`{3,}/g) || [];
+  const max = runs.reduce((m, r) => Math.max(m, r.length), 0);
+  return '`'.repeat(Math.max(3, max + 1));
+}
+function clipSnippet(snippet) {
+  const lines = snippet.replace(/\r/g, '').split('\n');
+  if (lines.length <= 40) return lines.join('\n');
+  return [...lines.slice(0, 15), `…（中略 ${lines.length - 30}行）…`, ...lines.slice(-15)].join('\n');
+}
+function quoteIsRedundant(c) {
+  const q = normalizeWs(c.quote);
+  if (!q) return true;
+  const plain = normalizeWs(c.snippet.replace(/[#>*_`~|[\]()!-]/g, ' '));
+  return q.length >= plain.length * 0.8;
+}
+function getCommonInstructions() {
+  return document.getElementById('cp-common').value.trim();
+}
+
+function buildPrompt() {
+  const list = sortedOpenComments();
+  if (!list.length) return '';
+  const t = resolveTargetPath();
+  const out = ['次の Markdown ファイルを、下記のコメントに従って修正してください。', ''];
+  out.push(`対象ファイル: ${t.display}`);
+  if (!t.absolute) {
+    out.push(state.currentPath.startsWith(EXT_PREFIX)
+      ? '（絶対パス不明。このファイル名で該当ファイルを探して開いてください）'
+      : `（「${state.rootName}」フォルダからの相対パスです。絶対パス不明のため、該当ファイルを探して開いてください）`);
+  }
+  if (state.dirty) out.push('※ 行番号・原文はエディタ上の未保存の内容に基づいています。');
+  out.push('', `## 修正指示（${list.length}件）`);
+  list.forEach((c, i) => {
+    out.push('', `### ${i + 1}. ${lineLabel(c)}`);
+    if (c.kind === 'range') {
+      if (!c.snippet.trim()) {
+        out.push('位置: この行（空行）');
+      } else {
+        const f = fenceFor(c.snippet);
+        out.push('原文:', f + 'markdown', clipSnippet(c.snippet), f);
+      }
+      if (cmt.anchors.get(c.id) === 'changed') out.push('※ この原文は現在のファイルに見つかりません（既に変更済みの可能性があります）');
+      if (c.quote && !quoteIsRedundant(c)) out.push(`選択箇所: 「${c.quote}」`);
+    }
+    const body = c.body.trim();
+    if (body.includes('\n')) out.push('指示:', body);
+    else out.push(`指示: ${body}`);
+  });
+  out.push(
+    '',
+    '## 進め方',
+    '- 行番号はコメント作成時点のものです。ずれている場合は「原文」で位置を特定してください',
+    '- 指示のない箇所（frontmatter を含む）は変更しないでください',
+    '- 指示が曖昧な場合は、修正前に確認してください',
+    '- 修正後、番号ごとにどう対応したかを1行で報告してください',
+  );
+  getCommonInstructions().split('\n').map(l => l.trim()).filter(Boolean)
+    .forEach(l => out.push(l.startsWith('-') ? l : '- ' + l));
+  return out.join('\n');
+}
+
+async function copyPrompt() {
+  if (!state.currentPath) return;
+  if (state.dirty && confirm('未保存の変更があります。保存してからコピーしますか？\n（キャンセルでそのままコピー）')) {
+    await saveCurrent();
+  }
+  const text = buildPrompt();
+  if (!text) {
+    showToast('未解決のコメントがありません', 'error');
+    return;
+  }
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    try { ok = document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  if (!ok) {
+    cmt.showPrompt = true;
+    updateFooter();
+    showToast('コピーできませんでした。プレビューから手動でコピーしてください', 'error');
+    return;
+  }
+  const now = Date.now();
+  sortedOpenComments().forEach(c => { c.sentAt = now; });
+  persistComments(state.currentPath);
+  renderCommentPanel();
+  showToast('コピーしました。Claude Code に貼り付けてください', 'success');
+}
+
+/* ----- パネル描画 ----- */
+function setPanelOpen(open) {
+  const main = document.getElementById('main');
+  const app = document.getElementById('app');
+  const wasOpen = main.classList.contains('comments-open');
+  main.classList.toggle('comments-open', open);
+  document.getElementById('btn-comments').classList.toggle('active', open);
+  // 狭いウィンドウではパネルを開くときにサイドバーを畳み、閉じたら戻す
+  if (open && !wasOpen && window.innerWidth < 1280 && !app.classList.contains('sidebar-collapsed')) {
+    app.classList.add('sidebar-collapsed');
+    cmt.autoCollapsedSidebar = true;
+  } else if (!open && wasOpen && cmt.autoCollapsedSidebar) {
+    app.classList.remove('sidebar-collapsed');
+    cmt.autoCollapsedSidebar = false;
+  }
+  try { localStorage.setItem('md-studio:cmt-open', open ? '1' : '0'); } catch (e) {}
+}
+
+function updateCommentBadges() {
+  const n = state.currentPath ? openCommentsFor(state.currentPath).length : 0;
+  const el = document.getElementById('cmt-count');
+  el.textContent = n ? String(n) : '';
+  el.hidden = !n;
+  document.getElementById('cp-count').textContent = String(n);
+}
+
+function updateFooter() {
+  const n = state.currentPath ? sortedOpenComments().length : 0;
+  document.getElementById('cp-copy').disabled = n === 0;
+  document.getElementById('cp-copy-label').textContent = n ? `プロンプトをコピー（${n}件）` : 'プロンプトをコピー';
+  const common = getCommonInstructions();
+  const commonState = document.getElementById('cp-common-state');
+  commonState.textContent = common ? `${common.split('\n').filter(l => l.trim()).length}行` : 'なし';
+  commonState.classList.toggle('ok', !!common);
+  const pre = document.getElementById('cp-prompt-preview');
+  pre.hidden = !cmt.showPrompt;
+  document.getElementById('cp-toggle-preview').classList.toggle('active', cmt.showPrompt);
+  if (cmt.showPrompt) pre.textContent = buildPrompt() || '（未解決のコメントがありません）';
+}
+
+function quotePreview(c) {
+  if (c.quote) return c.quote;
+  const first = c.snippet.split('\n').map(l => l.trim()).find(Boolean) || '';
+  return first.length > 120 ? first.slice(0, 120) + '…' : first;
+}
+
+function commentCardHtml(c, num) {
+  const anchor = cmt.anchors.get(c.id) || 'ok';
+  const chips = [];
+  if (anchor === 'changed') chips.push(`<span class="cmt-chip changed">${c.sentAt ? '対応済み？' : '原文が変更'}</span>`);
+  else if (c.sentAt) chips.push('<span class="cmt-chip sent">送信済み</span>');
+  if (anchor === 'moved') chips.push('<span class="cmt-chip moved">位置を更新</span>');
+  const quote = c.kind === 'range' ? quotePreview(c) : '';
+  return `
+    <div class="cmt-card${c.kind === 'file' ? ' file' : ''}${anchor === 'changed' ? ' changed' : ''}" data-id="${c.id}">
+      <div class="cmt-card-head">
+        <span class="cmt-num">${num}</span>
+        <button class="cmt-loc" data-act="jump" title="プレビューで表示">${escapeHtml(lineLabel(c))}</button>
+        <span class="spacer"></span>
+        <button class="cmt-icon" data-act="resolve" title="解決済みにする">${ICON.check}</button>
+        <button class="cmt-icon danger" data-act="delete" title="削除">${ICON.trash}</button>
+      </div>
+      ${chips.length ? `<div class="cmt-chips">${chips.join('')}</div>` : ''}
+      ${quote ? `<div class="cmt-quote">${escapeHtml(quote)}</div>` : ''}
+      <textarea class="cp-textarea cmt-body" data-id="${c.id}" rows="2" placeholder="修正指示">${escapeHtml(c.body)}</textarea>
+    </div>`;
+}
+
+function resolvedCardHtml(c) {
+  return `
+    <div class="cmt-card${c.kind === 'file' ? ' file' : ''}" data-id="${c.id}">
+      <div class="cmt-card-head">
+        <span class="cmt-loc">${escapeHtml(lineLabel(c))}</span>
+        <span class="spacer"></span>
+        <button class="cmt-icon" data-act="reopen" title="未解決に戻す">${ICON.undo}</button>
+        <button class="cmt-icon danger" data-act="delete" title="削除">${ICON.trash}</button>
+      </div>
+      <div class="cmt-body-text">${escapeHtml(c.body)}</div>
+    </div>`;
+}
+
+function renderCommentPanel() {
+  const dyn = document.getElementById('cp-dynamic');
+  const fileEl = document.getElementById('cp-file');
+  updateCommentBadges();
+  renderPathSection();
+  if (!state.currentPath) {
+    fileEl.textContent = '';
+    dyn.innerHTML = '<div class="cp-empty">ファイルを開くと、<br>ここでコメント（修正指示）を付けられます</div>';
+    updateFooter();
+    return;
+  }
+  const t = resolveTargetPath();
+  fileEl.textContent = t.display.split('/').pop();
+  fileEl.title = t.display;
+
+  // 再描画で入力中のテキスト・フォーカスを失わないよう退避
+  const active = document.activeElement;
+  const focusId = active && active.classList.contains('cmt-body') ? active.dataset.id : null;
+  const focusDraft = active && active.id === 'cp-draft-body';
+  const selStart = active && active.selectionStart, selEnd = active && active.selectionEnd;
+  const draftEl = document.getElementById('cp-draft-body');
+  const draftVal = draftEl ? draftEl.value : '';
+
+  const editMode = state.mode === 'edit';
+  const open = sortedOpenComments();
+  const resolved = commentsFor(state.currentPath).filter(c => c.status === 'resolved');
+  const changedCount = open.filter(c => cmt.anchors.get(c.id) === 'changed').length;
+  let html = `
+    <div class="cp-actions">
+      <button class="cp-act" data-act="add-file">${ICON.file} ファイル全体に</button>
+      <button class="cp-act" data-act="add-sel" ${editMode ? 'disabled' : ''} title="${state.mode === 'split' ? '選択範囲（またはカーソル行）にコメント' : 'プレビューで選択した範囲にコメント'}">${ICON.select} 選択範囲に <kbd>⌥⌘M</kbd></button>
+    </div>`;
+  if (editMode) {
+    html += '<div class="cp-notice info">Edit モードでは範囲コメントを追加できません。Preview か Split に切り替えてください。</div>';
+  }
+  if (changedCount) {
+    html += `<div class="cp-notice">該当箇所が変わったコメントが ${changedCount}件あります（対応済みの可能性）<button data-act="resolve-changed">まとめて解決</button></div>`;
+  }
+  if (cmt.draft) {
+    const d = cmt.draft;
+    const q = d.kind === 'range' ? quotePreview(d) : '';
+    html += `
+      <div class="cp-composer">
+        <div class="cp-composer-head">${escapeHtml(lineLabel(d))} にコメント</div>
+        ${q ? `<div class="cmt-quote">${escapeHtml(q)}</div>` : ''}
+        <textarea class="cp-textarea" id="cp-draft-body" placeholder="どう直してほしいかを書く（例: もっと簡潔に／表にまとめて）"></textarea>
+        <div class="cp-composer-foot">
+          <span class="hint">⌘Enter で追加 / Esc で取消</span>
+          <button class="btn-ghost btn-sm" data-act="draft-cancel">キャンセル</button>
+          <button class="btn-primary btn-sm" data-act="draft-save">追加</button>
+        </div>
+      </div>`;
+  }
+  if (open.length) {
+    html += open.map((c, i) => commentCardHtml(c, i + 1)).join('');
+  } else if (!cmt.draft) {
+    html += '<div class="cp-empty">まだコメントはありません。<br>プレビューで文字を選択するか、<br>段落の左に出る ＋ から追加できます。</div>';
+  }
+  if (resolved.length) {
+    html += `
+      <details class="cp-sec" id="cp-resolved-sec" ${cmt.resolvedOpen ? 'open' : ''}>
+        <summary>${ICON.chevron} 解決済み <span class="cp-sec-state">${resolved.length}</span></summary>
+        <div class="cp-sec-body">
+          <div class="cp-resolved-list">${resolved.map(resolvedCardHtml).join('')}</div>
+          <button class="btn-ghost btn-sm" data-act="clear-resolved" style="align-self:flex-start;">解決済みをすべて削除</button>
+        </div>
+      </details>`;
+  }
+  dyn.innerHTML = html;
+
+  const newDraft = document.getElementById('cp-draft-body');
+  if (newDraft) newDraft.value = draftVal;
+  if (focusDraft && newDraft) {
+    newDraft.focus();
+    try { newDraft.setSelectionRange(selStart, selEnd); } catch (e) {}
+  } else if (focusId) {
+    const ta = dyn.querySelector(`.cmt-body[data-id="${focusId}"]`);
+    if (ta) {
+      ta.focus();
+      try { ta.setSelectionRange(selStart, selEnd); } catch (e) {}
+    }
+  }
+  const resolvedSec = document.getElementById('cp-resolved-sec');
+  if (resolvedSec) resolvedSec.addEventListener('toggle', () => { cmt.resolvedOpen = resolvedSec.open; });
+  updateFooter();
+}
+
+/* ----- パネルのイベント ----- */
+const cpDynamic = document.getElementById('cp-dynamic');
+cpDynamic.addEventListener('mousedown', (e) => {
+  // プレビューの選択を消さないため、ボタン押下でフォーカスを移さない
+  if (e.target.closest('[data-act="add-sel"]')) e.preventDefault();
+});
+cpDynamic.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-act]');
+  if (!btn) {
+    const card = e.target.closest('.cmt-card');
+    if (card && !e.target.closest('textarea') && !card.closest('.cp-resolved-list')) jumpToComment(card.dataset.id);
+    return;
+  }
+  const act = btn.dataset.act;
+  const card = btn.closest('.cmt-card');
+  const id = card ? card.dataset.id : null;
+  switch (act) {
+    case 'add-file': addFileComment(); break;
+    case 'add-sel': addCommentFromSelection(); break;
+    case 'draft-save': commitDraft(); break;
+    case 'draft-cancel': cancelDraft(); break;
+    case 'jump': jumpToComment(id); break;
+    case 'resolve':
+      updateComment(id, { status: 'resolved', resolvedAt: Date.now() });
+      refreshComments();
+      break;
+    case 'reopen':
+      updateComment(id, { status: 'open' });
+      refreshComments();
+      break;
+    case 'delete': {
+      const c = findComment(id);
+      if (c && c.body.trim() && !confirm('このコメントを削除しますか？')) return;
+      removeComments(x => x.id === id);
+      refreshComments();
+      break;
+    }
+    case 'resolve-changed': {
+      const now = Date.now();
+      sortedOpenComments().filter(c => cmt.anchors.get(c.id) === 'changed')
+        .forEach(c => { c.status = 'resolved'; c.resolvedAt = now; });
+      persistComments(state.currentPath);
+      refreshComments();
+      break;
+    }
+    case 'clear-resolved':
+      if (!confirm('解決済みのコメントをすべて削除しますか？')) return;
+      removeComments(c => c.status === 'resolved');
+      refreshComments();
+      break;
+  }
+});
+cpDynamic.addEventListener('input', (e) => {
+  const ta = e.target.closest('.cmt-body');
+  if (!ta) return;
+  const c = updateComment(ta.dataset.id, { body: ta.value }, false);
+  if (c) {
+    const pin = document.querySelector(`#preview .cmt-pin[data-id="${c.id}"]`);
+    if (pin) pin.title = c.body;
+  }
+  updateFooter();
+});
+cpDynamic.addEventListener('keydown', (e) => {
+  if (e.target.id !== 'cp-draft-body') return;
+  if (e.isComposing || e.keyCode === 229) return; // IME変換確定のEnterを誤処理しない
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+    e.preventDefault();
+    commitDraft();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelDraft();
+  }
+});
+
+document.getElementById('btn-comments').addEventListener('click', () => {
+  setPanelOpen(!document.getElementById('main').classList.contains('comments-open'));
+});
+document.getElementById('cp-close').addEventListener('click', () => setPanelOpen(false));
+document.getElementById('cp-copy').addEventListener('click', copyPrompt);
+document.getElementById('cp-toggle-preview').addEventListener('click', () => {
+  cmt.showPrompt = !cmt.showPrompt;
+  updateFooter();
+});
+document.getElementById('cp-path-input').addEventListener('input', (e) => {
+  const key = currentPathKey();
+  if (!key) return;
+  savePathSetting(key, e.target.value.trim());
+  renderPathSection();
+  updateFooter();
+});
+document.getElementById('cp-common').addEventListener('input', (e) => {
+  try { localStorage.setItem('md-studio:cmt-common', e.target.value); } catch (err) {}
+  updateFooter();
+});
+
+/* ----- プレビュー側のイベント（選択ボタン・ホバーの＋・番号ピン） ----- */
+const selBtn = document.getElementById('cmt-sel-btn');
+const hoverAdd = document.getElementById('cmt-hover-add');
+const previewPaneEl = document.querySelector('.main .preview-pane');
+
+function hideSelectionButton() {
+  selBtn.classList.remove('show');
+}
+function maybeShowSelectionButton() {
+  if (!state.currentPath || state.mode === 'edit') return hideSelectionButton();
+  const sel = window.getSelection();
+  if (!sel || sel.isCollapsed || !sel.rangeCount || !sel.toString().trim()) return hideSelectionButton();
+  const range = sel.getRangeAt(0);
+  if (!document.getElementById('preview').contains(range.commonAncestorContainer)) return hideSelectionButton();
+  const rects = range.getClientRects();
+  const r = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
+  const pr = previewPaneEl.getBoundingClientRect();
+  if (r.bottom < pr.top || r.top > pr.bottom) return hideSelectionButton();
+  selBtn.classList.add('show');
+  const w = selBtn.offsetWidth, h = selBtn.offsetHeight;
+  const left = Math.min(window.innerWidth - w - 12, Math.max(12, r.right - w / 2));
+  let top = r.bottom + 8;
+  if (top + h > window.innerHeight - 12) top = r.top - h - 8;
+  selBtn.style.left = left + 'px';
+  selBtn.style.top = top + 'px';
+}
+selBtn.addEventListener('mousedown', (e) => e.preventDefault());
+selBtn.addEventListener('click', () => {
+  const d = previewSelectionDraft();
+  if (d) openComposer(d);
+});
+document.addEventListener('mouseup', (e) => {
+  if (e.target.closest && e.target.closest('#cmt-sel-btn')) return;
+  setTimeout(maybeShowSelectionButton, 0);
+});
+document.addEventListener('mousedown', (e) => {
+  if (!(e.target.closest && e.target.closest('#cmt-sel-btn'))) hideSelectionButton();
+});
+document.addEventListener('keyup', (e) => {
+  if (e.shiftKey || e.key === 'Shift') maybeShowSelectionButton();
+});
+document.addEventListener('selectionchange', () => {
+  if (document.activeElement === editor) {
+    cmt.lastSelSource = 'editor';
+    return;
+  }
+  const sel = window.getSelection();
+  if (sel && !sel.isCollapsed && sel.rangeCount && document.getElementById('preview').contains(sel.anchorNode)) {
+    cmt.lastSelSource = 'preview';
+  }
+});
+let selScrollRaf = null;
+previewPaneEl.addEventListener('scroll', () => {
+  if (!selBtn.classList.contains('show') || selScrollRaf) return;
+  selScrollRaf = requestAnimationFrame(() => {
+    selScrollRaf = null;
+    maybeShowSelectionButton();
+  });
+}, { passive: true });
+
+let hoverTarget = null;
+let hoverHideTimer = null;
+function hideHoverAdd(now = false) {
+  clearTimeout(hoverHideTimer);
+  const hide = () => {
+    hoverAdd.classList.remove('show');
+    hoverTarget = null;
+  };
+  if (now) hide();
+  else hoverHideTimer = setTimeout(hide, 350);
+}
+previewPaneEl.addEventListener('mouseover', (e) => {
+  if (!state.currentPath || state.mode === 'edit') return;
+  if (e.target.closest('#cmt-hover-add')) {
+    clearTimeout(hoverHideTimer);
+    return;
+  }
+  const block = e.target.closest('#preview .md-body > [data-src], #preview > .frontmatter-card');
+  if (!block) {
+    hideHoverAdd();
+    return;
+  }
+  clearTimeout(hoverHideTimer);
+  hoverTarget = block;
+  const pr = previewPaneEl.getBoundingClientRect();
+  const br = block.getBoundingClientRect();
+  hoverAdd.style.top = (br.top - pr.top + previewPaneEl.scrollTop + 2) + 'px';
+  hoverAdd.style.left = Math.max(4, br.left - pr.left - 38) + 'px';
+  hoverAdd.classList.add('show');
+});
+previewPaneEl.addEventListener('mouseleave', () => hideHoverAdd());
+hoverAdd.addEventListener('click', () => {
+  if (hoverTarget && hoverTarget.isConnected) addBlockComment(hoverTarget);
+  hideHoverAdd(true);
+});
+
+document.getElementById('preview').addEventListener('click', (e) => {
+  const pin = e.target.closest('.cmt-pin');
+  if (pin) focusCommentCard(pin.dataset.id);
+});
+
+// 画像の読込・Mermaid 描画・パネル開閉などでレイアウトが変わったら番号ピンを置き直す
+new ResizeObserver(scheduleMarkers).observe(document.getElementById('preview'));
+
+/* ----- Claude Code が書き換えたら自動で読み直す ----- */
+let diskChecking = false;
+async function checkDiskChange() {
+  if (diskChecking || !state.currentHandle || !state.currentPath) return;
+  diskChecking = true;
+  try {
+    const handle = state.currentHandle;
+    const file = await handle.getFile();
+    if (handle !== state.currentHandle) return;
+    if (!file.lastModified || file.lastModified === state.currentMtime) return;
+    const text = await file.text();
+    if (text === state.currentText) {
+      state.currentMtime = file.lastModified;
+      return;
+    }
+    if (state.dirty) {
+      if (state.diskWarnedMtime !== file.lastModified) {
+        state.diskWarnedMtime = file.lastModified;
+        showToast('ディスク側で変更されています（未保存の編集があるため再読込していません）', 'error');
+      }
+      return;
+    }
+    await openFile(state.currentPath, { preserveScroll: true });
+    const changed = sortedOpenComments().filter(c => cmt.anchors.get(c.id) === 'changed').length;
+    showToast(changed ? `ディスクの変更を読み込みました（対応済みらしいコメント ${changed}件）` : 'ディスクの変更を読み込みました', 'success');
+  } catch (e) {
+    /* 削除・権限切れなどは無視 */
+  } finally {
+    diskChecking = false;
+  }
+}
+window.addEventListener('focus', checkDiskChange);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkDiskChange();
+});
+setInterval(() => {
+  if (document.visibilityState === 'visible') checkDiskChange();
+}, 3000);
+
+async function reloadCurrent() {
+  if (!state.currentPath) return;
+  if (state.dirty && !confirm('未保存の変更を破棄して、ディスクから読み直しますか？')) return;
+  await openFile(state.currentPath, { preserveScroll: true });
+  showToast('再読込しました', 'success');
+}
+document.getElementById('btn-reload').addEventListener('click', reloadCurrent);
+
 /* ========== Restore last session ========== */
+async function reopenLastFile() {
+  try {
+    const last = localStorage.getItem('md-studio:lastPath');
+    if (last && state.fileMap.has(last)) await openFile(last);
+  } catch (e) {}
+}
+
 (async function init() {
   // Restore mode
   try {
@@ -2132,13 +3999,23 @@ document.getElementById('preview').addEventListener('click', async (e) => {
     if (m === 'preview' || m === 'edit' || m === 'split') setMode(m);
   } catch (e) {}
 
+  // Restore comments (IndexedDB) and panel state
+  try { await loadAllComments(); } catch (e) { console.warn('comments restore failed', e); }
+  try {
+    document.getElementById('cp-common').value = localStorage.getItem('md-studio:cmt-common') || '';
+    setPanelOpen(localStorage.getItem('md-studio:cmt-open') === '1');
+  } catch (e) {}
+  renderCommentPanel();
+
   // Restore directory handle
   try {
     const handle = await loadHandle();
     if (handle) {
-      const ok = await verifyPermission(handle, true);
-      if (ok) {
+      // ユーザー操作なしの requestPermission は SecurityError になるため、ここでは query のみ
+      const q = await handle.queryPermission({ mode: 'readwrite' });
+      if (q === 'granted') {
         await useFolder(handle);
+        await reopenLastFile();
       } else {
         // show a small hint: click open to re-grant
         document.getElementById('sidebar-tree').innerHTML = `
@@ -2150,8 +4027,12 @@ document.getElementById('preview').addEventListener('click', async (e) => {
           </div>`;
         document.getElementById('regrant').addEventListener('click', async () => {
           const granted = await verifyPermission(handle, true);
-          if (granted) await useFolder(handle);
-          else showToast('権限が拒否されました', 'error');
+          if (granted) {
+            await useFolder(handle);
+            await reopenLastFile();
+          } else {
+            showToast('権限が拒否されました', 'error');
+          }
         });
       }
     }
